@@ -48,5 +48,9 @@ python cifar_finetune.py -l 56 -g 4 -p 0.2
 
 ```
 
+**Packing Pruned Models**
 
+```
+python pack_model.py --ckpt [pruned_model_path] --save [save_path]
 
+```

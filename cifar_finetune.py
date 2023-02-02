@@ -19,7 +19,7 @@ parser.add_argument('-d', '--device', default='0', type=str, metavar='D', help='
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='J', help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=300, type=int, metavar='E', help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='B', help='mini-batch size')
-parser.add_argument('--lr', '--learning-rate', default=0.015, type=float, metavar='LR', help='initial learning rate')
+parser.add_argument('--lr', '--learning-rate', default=0.02, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar='W', help='weight decay')
 
@@ -96,9 +96,12 @@ def train(network, pr_rate, path):
             total += flop
             rparams += rate*param
             params += param
-    print('FLOP pruning rate:', remaining/total, '\nParam pruning rate:', rparams/params)
+    
+    flops = (1-remaining/total)*100
+    params = (1-rparams/params)*100
+    print('FLOP pruning rate:', flops, '\nParam pruning rate:', params)
+    bestset = {'acc':0, 'flops':flops, 'params':params}
 
-    bestacc=0
     epoch_per_cycle = math.ceil(args.epochs / args.cycles)
     scheduler = CosineAnnealingLR(optimizer, epoch_per_cycle)
         
@@ -106,16 +109,37 @@ def train(network, pr_rate, path):
     for epoch in range(args.epochs):
         cnn.train()
         scheduler.step(epoch%epoch_per_cycle)
-        loss = train_epoch(train_loader, cnn, config, criterion, bestacc, optimizer, bar)
+        loss = train_epoch(train_loader, cnn, config, criterion, bestset, optimizer, bar)
         acc = evaluate(test_loader, cnn)
 
-        if bestacc<acc:
-            bestacc=acc
-            torch.save([cnn.state_dict(),bestacc], savepath)
-            bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f" % (get_lr(optimizer)[0], loss.item(), bestacc))
+        if bestset['acc']<=acc:
+            bestset = {'acc':acc, 'flops':flops, 'params':params}
+            torch.save([cnn.state_dict(),bestset['acc']], savepath)
+            bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|PR_F:%.2f|PR_P:%.2f" % (get_lr(optimizer)[0], loss.item(), bestset['acc'], bestset['flops'], bestset['params']))
         
+        # prune a small portion of channels for each cycle
+        # to prevent over-fitting and to remove dead channels
+        if (epoch+1)%epoch_per_cycle==0:
+            for m in cnn.modules():
+                if isinstance(m, Prunedblock):
+                    m.set_mask(1e-3)
+                    m.prune()
+            remaining = 0
+            total = 0
+            params = 0
+            rparams = 0
+            for l in [m.pruning_stats(True) for m in cnn.modules() if isinstance(m, Prunedblock)]:
+                for rate, flop, param in l:
+                    remaining += rate*flop
+                    total += flop
+                    rparams += rate*param
+                    params += param
+            flops = (1-remaining/total)*100
+            params = (1-rparams/params)*100
+            print('FLOP pruning rate:', flops, '\nParam pruning rate:', params)
+            
     bar.close()
-    return bestacc
+    return bestset['acc']
 
 def evaluate(test_loader, cnn):
     cnn.eval()
@@ -133,7 +157,7 @@ def evaluate(test_loader, cnn):
     cnn.train()
     return acc
 
-def train_epoch(train_loader, cnn, config, criterion, bestacc, optimizer, bar):
+def train_epoch(train_loader, cnn, config, criterion, bestset, optimizer, bar):
     for step, (images, labels) in enumerate(train_loader):
         optimizer.zero_grad()
         gpuimg = images.to(device)
@@ -146,7 +170,7 @@ def train_epoch(train_loader, cnn, config, criterion, bestacc, optimizer, bar):
         optimizer.step()
         prune(cnn)
         
-        bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f" % (get_lr(optimizer)[0], loss.item(), bestacc))
+        bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|PR_F:%.2f|PR_P:%.2f" % (get_lr(optimizer)[0], loss.item(), bestset['acc'], bestset['flops'], bestset['params']))
         bar.update()
     return loss
 

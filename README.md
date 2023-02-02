@@ -39,10 +39,10 @@ python cifar_dsp.py -l 56 -g 4 -r 5e-4
 
 ```
 # ResNet20 with group 4, pruning rate=0.2
-python cifar_dsp_tune.py -l 20 -g 4 -p 0.2
+python cifar_finetune.py -l 20 -g 4 -p 0.2
 
 # ResNet56 with group 4, pruning rate=0.2
-python cifar_dsp_tune.py -l 56 -g 4 -p 0.2
+python cifar_finetune.py -l 56 -g 4 -p 0.2
 
 ```
 

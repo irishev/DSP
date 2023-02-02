@@ -4,8 +4,10 @@ _Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee_
 
 _Proceedings of the 37th AAAI Conference on Artificial Intelligence (AAAI-23)_
 
+We will release pruned models (pytorch-JIT-compiled) soon!
+
 ## Requirements
-- Python 3.6
+- Python 3.7
 - PyTorch 1.10.0
 - TorchVision 0.11.0
 - tqdm

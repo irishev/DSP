@@ -26,10 +26,10 @@ python cifar_pretrain.py -l 56 [--save-dir ./cifarmodel] [--epochs 164] [--batch
 
 ```
 # ResNet20 with group 4, lambda=1e-3
-python cifar_dsp.py -l 20 -g 4 -r 1e-2
+python cifar_dsp.py -l 20 -g 4 -r 1e-3
 
 # ResNet20 with group 2, lambda=1e-3
-python cifar_dsp.py -l 20 -g 2 -r 1e-2
+python cifar_dsp.py -l 20 -g 2 -r 1e-3
 
 # ResNet56 with group 4, lambda=5e-4
 python cifar_dsp.py -l 56 -g 4 -r 5e-4

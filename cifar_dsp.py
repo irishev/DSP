@@ -84,7 +84,9 @@ def train(network, reg, path):
     optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     group_optimizer = torch.optim.Adam(group_parameters, lr=0.001, eps=1e-12)
     scheduler = CosineAnnealingLR(optimizer, args.epochs)
-        
+    
+    profile(cnn)
+    
     bar = tqdm(total=len(train_loader) * args.epochs)
     for epoch in range(args.epochs):
         cnn.train()

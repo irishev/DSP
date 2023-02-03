@@ -38,6 +38,37 @@ class ResNetBasicblock(nn.Module):
 
         return out.relu_()
 
+class Hook():
+    def __init__(self, module):
+        self.hook = module.register_forward_hook(self.hook_fn)
+    
+    def hook_fn(self, module, input, output):
+        self.input_size = 1
+        self.flops = 1
+        for s in module.weight.size():
+            self.flops*=s
+        self.flops*=output.size(2)*output.size(3)
+        for i in input[0].size():
+            self.input_size*=i
+        module.flops = self.flops
+        module.input_size = self.input_size/(16*32*32)
+    
+    def close(self):
+        self.hook.remove()
+
+def profile(net):
+    hook = []
+    for m in net.modules():
+        if isinstance(m, Prunedblock) or isinstance(m, Deformableblock):
+            hook.append(Hook(m.conv_a))
+            hook.append(Hook(m.conv_b))
+    net.eval()
+    with torch.no_grad():
+        net(torch.randn(1,3,32,32).cuda())
+    net.train()
+    for h in hook:
+        h.close()
+        
 class Deformableblock(ResNetBasicblock):
     def __init__(self, inplanes, planes, stride=1, downsample=None, path=None, temp=None):
         super(Deformableblock, self).__init__(inplanes, planes, stride, downsample)
@@ -69,16 +100,14 @@ class Deformableblock(ResNetBasicblock):
                 
         for p, pg in zip(self.prob_a, self.pgrad_a):
             penalty, grad = self.derivatives(self.conv_a.weight, p, self.buffer_a, self.order, mode)
-            num_gcw = self.conv_a.weight.numel()/self.conv_a.weight.size(1)/self.group_a.size(0)
-            scale = (num_gcw**0.5)*(self.group_a.size(0)**(1/self.order))/(self.conv_a.weight.size(0)**(1/self.order))
+            scale = (self.conv_a.input_size**0.5)*self.conv_a.weight.size(2)*self.group_a.size(0)/(self.conv_a.weight.size(0)**1.5)
             self.penalty_a.add_(scale*penalty)
             if mode==2:
                 pg.add_(grad)
             
         for p, pg in zip(self.prob_b, self.pgrad_b):
             penalty, grad = self.derivatives(self.conv_b.weight, p, self.buffer_b, self.order, mode)
-            num_gcw = self.conv_b.weight.numel()/self.conv_b.weight.size(1)/self.group_b.size(0)
-            scale = (num_gcw**0.5)*(self.group_b.size(0)**(1/self.order))/(self.conv_b.weight.size(0)**(1/self.order))
+            scale = (self.conv_b.input_size**0.5)*self.conv_b.weight.size(2)*self.group_b.size(0)/(self.conv_b.weight.size(0)**1.5)
             self.penalty_b.add_(scale*penalty)
             if mode==2:
                 pg.add_(grad)
@@ -132,37 +161,6 @@ class Deformableblock(ResNetBasicblock):
     def checkpoint(self):
         self.checkpoint_a = self.conv_a.weight.clone().detach()
         self.checkpoint_b = self.conv_b.weight.clone().detach()
-
-
-class Hook():
-    def __init__(self, module):
-        self.hook = module.register_forward_hook(self.hook_fn)
-    
-    def hook_fn(self, module, input, output):
-        self.input_size = 1
-        self.flops = 1
-        for s in module.weight.size():
-            self.flops*=s
-        self.flops*=output.size(2)*output.size(3)
-        for i in input[0].size():
-            self.input_size*=i
-        module.flops = self.flops
-    
-    def close(self):
-        self.hook.remove()
-
-def get_flops(net):
-    hook = []
-    for m in net.modules():
-        if isinstance(m, Prunedblock):
-            hook.append(Hook(m.conv_a))
-            hook.append(Hook(m.conv_b))
-    net.eval()
-    with torch.no_grad():
-        net(torch.randn(1,3,32,32).cuda())
-    net.train()
-    for h in hook:
-        h.close()
     
 class Prunedblock(ResNetBasicblock):
     def __init__(self, inplanes, planes, stride=1, downsample=None, path=None, temp=None):

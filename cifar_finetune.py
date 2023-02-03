@@ -84,7 +84,7 @@ def train(network, pr_rate, path):
             m.set_mask(pr_rate)
             m.prune()
     
-    get_flops(cnn)
+    profile(cnn)
     
     remaining = 0
     total = 0

@@ -100,14 +100,14 @@ class Deformableblock(ResNetBasicblock):
                 
         for p, pg in zip(self.prob_a, self.pgrad_a):
             penalty, grad = self.derivatives(self.conv_a.weight, p, self.buffer_a, self.order, mode)
-            scale = (self.conv_a.input_size**0.5)*self.conv_a.weight.size(2)*self.group_a.size(0)/(self.conv_a.weight.size(0)**1.5)
+            scale = (self.conv_a.input_size**0.5)*self.conv_a.weight.size(2)*((self.group_a.size(0)/self.conv_a.weight.size(0))**1.5)
             self.penalty_a.add_(scale*penalty)
             if mode==2:
                 pg.add_(grad)
             
         for p, pg in zip(self.prob_b, self.pgrad_b):
             penalty, grad = self.derivatives(self.conv_b.weight, p, self.buffer_b, self.order, mode)
-            scale = (self.conv_b.input_size**0.5)*self.conv_b.weight.size(2)*self.group_b.size(0)/(self.conv_b.weight.size(0)**1.5)
+            scale = (self.conv_b.input_size**0.5)*self.conv_b.weight.size(2)*((self.group_b.size(0)/self.conv_b.weight.size(0))**1.5)
             self.penalty_b.add_(scale*penalty)
             if mode==2:
                 pg.add_(grad)

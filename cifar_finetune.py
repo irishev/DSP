@@ -1,7 +1,7 @@
 import os, math
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
-from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR
 from tqdm import tqdm
 from cifar_model import *
 import argparse
@@ -103,7 +103,7 @@ def train(network, pr_rate, path):
     bestset = {'acc':0, 'flops':flops, 'params':params}
 
     epoch_per_cycle = math.ceil(args.epochs / args.cycles)
-    scheduler = OneCycleLR(optimizer, args.lr, epoch_per_cycle) # CosineAnnealingLR(optimizer, epoch_per_cycle)
+    scheduler = OneCycleLR(optimizer, args.lr, epoch_per_cycle)
         
     bar = tqdm(total=len(train_loader) * args.epochs)
     for epoch in range(args.epochs):
@@ -119,7 +119,7 @@ def train(network, pr_rate, path):
         
         # prune a small portion of channels for each cycle
         # to prevent over-fitting and to remove dead channels
-        if (epoch+1)%epoch_per_cycle==0:
+        if (epoch<args.epochs-1) and ((epoch+1)%epoch_per_cycle==0):
             for m in cnn.modules():
                 if isinstance(m, Prunedblock):
                     m.set_mask(1e-3)

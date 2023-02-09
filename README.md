@@ -24,6 +24,7 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 | ResNet56 (g=2)  |     |         |          |
 
 _We slightly changed the implementation of regularization scaling to obtain better speedup._
+
 _As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and fewer pruned parameters)._
 
 **Pretraining**

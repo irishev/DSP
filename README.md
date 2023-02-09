@@ -14,6 +14,18 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 ## Pruning on CIFAR-10 
 
+| Model           | ACC | P.FLOPS | P.PARAMS |
+| --------------- | --- | ------- | -------- |
+| ResNet20 (g=4)  |     |         |          |
+| ResNet20 (g=3)  |     |         |          |
+| ResNet20 (g=2)  |     |         |          |
+| ResNet56 (g=4)  |     |         |          |
+| ResNet56 (g=3)  |     |         |          |
+| ResNet56 (g=2)  |     |         |          |
+
+_We slightly changed the implementation of regularization scaling to obtain better speedup._
+_As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and less pruned parameters)._
+
 **Pretraining**
 
 ```

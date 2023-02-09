@@ -26,7 +26,7 @@ parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar=
 # DSP Hyperparameters
 parser.add_argument('-g', '--groups', default=4, type=int, metavar='G', help='number of groups')
 parser.add_argument('-r', '--regularize', default=2e-3, type=float, metavar='R', help='regularization power')
-parser.add_argument('-t', '--temparature', default=1.0, type=float, metavar='T', help='temparature for gumbel softmax')
+parser.add_argument('-t', '--temparature', default=0.5, type=float, metavar='T', help='temparature for gumbel softmax')
 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"]=args.device

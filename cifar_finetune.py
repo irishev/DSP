@@ -19,7 +19,7 @@ parser.add_argument('-d', '--device', default='0', type=str, metavar='D', help='
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='J', help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=300, type=int, metavar='E', help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='B', help='mini-batch size')
-parser.add_argument('--lr', '--learning-rate', default=0.02, type=float, metavar='LR', help='initial learning rate')
+parser.add_argument('--lr', '--learning-rate', default=0.015, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar='W', help='weight decay')
 
@@ -44,6 +44,7 @@ def train(network, pr_rate, path):
                                   transform=transforms.Compose([
                                       transforms.RandomHorizontalFlip(),
                                       transforms.RandomCrop(32, 4),
+                                      #transforms.TrivialAugmentWide(interpolation=transforms.InterpolationMode.BILINEAR),
                                       transforms.ToTensor(),
                                       transforms.Normalize(mean=(0.4914, 0.4822, 0.4465),
                                                            std=(0.2470, 0.2435, 0.2616))

@@ -44,7 +44,6 @@ def train(network, pr_rate, path):
                                   transform=transforms.Compose([
                                       transforms.RandomHorizontalFlip(),
                                       transforms.RandomCrop(32, 4),
-                                      #transforms.TrivialAugmentWide(interpolation=transforms.InterpolationMode.BILINEAR),
                                       transforms.ToTensor(),
                                       transforms.Normalize(mean=(0.4914, 0.4822, 0.4465),
                                                            std=(0.2470, 0.2435, 0.2616))

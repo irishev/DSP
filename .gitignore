@@ -163,3 +163,4 @@ cython_debug/
 dataset/
 *.sh
 imagenet*
+inspect_groups.py

@@ -118,15 +118,11 @@ def evaluate(test_loader, cnn):
     return acc
 
 def train_epoch(train_loader, cnn, config, criterion, bestacc, optimizer, group_optimizer, bar, reg, warmup):
-    train_loader2 = iter(train_loader)
     for step, (images, labels) in enumerate(train_loader):
         gpuimg = images.to(device)
         labels = labels.to(device)
-        images2, labels2 = next(train_loader2)
-        gpuimg2 = images2.to(device)
-        labels2 = labels2.to(device)
 
-        loss = train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, labels2, gpuimg2, reg, warmup)
+        loss = train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, reg, warmup)
 
         bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|REG:%.3fe-3" % (get_lr(optimizer)[0], loss.item(), bestacc, reg*warmup*1000))
         bar.update()
@@ -137,7 +133,7 @@ def zero_grad(optimizer, group_optimizer):
     group_optimizer.zero_grad(True)
 
 
-def train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, labels2, gpuimg2, reg, warmup):
+def train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, reg, warmup):
     zero_grad(optimizer, group_optimizer)
     set_arch(cnn, False)
     outputs = cnn(gpuimg)
@@ -149,8 +145,8 @@ def train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, label
     states = save_states(cnn, optimizer)
     regularize(cnn, optimizer, reg)
     checkpoint(cnn)
-    outputs = cnn(gpuimg2)
-    loss = criterion(outputs, labels2)
+    outputs = cnn(gpuimg)
+    loss = criterion(outputs, labels)
     loss.backward()
     optimizer.step()
     calc_penalty(cnn, 2)

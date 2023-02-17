@@ -16,9 +16,9 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 | Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
 | --------------- | ----- | ------- | --------- | -------- |
-| ResNet20 (g=4)  | 92.16 |  68.01  |   51.78   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
+| ResNet20 (g=4)  | 92.16 |  68.01  |   51.78   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
 | ResNet20 (g=3)  | 92.16 |  66.49  |   52.49   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
-| ResNet20 (g=2)  | 92.03 |  64.74  |   52.21   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
+| ResNet20 (g=2)  | 92.03 |  64.74  |   52.21   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
 | ResNet56 (g=4)  |       |         |           | [Link]() |
 | ResNet56 (g=3)  |       |         |           | [Link]() |
 | ResNet56 (g=2)  |       |         |           | [Link]() |

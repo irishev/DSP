@@ -48,7 +48,7 @@ def main():
     input_tensor = torch.randn(1,3,32,32).to(device)
     traced_cnn = torch.jit.trace(packed_cnn.eval(), input_tensor)
     print(traced_cnn)
-    get_flops(cnn)
+    profile(cnn)
     
     remaining = 0
     total = 0
@@ -60,7 +60,7 @@ def main():
             total += flop
             rparams += rate*param
             params += param
-    print('FLOP pruning rate:', remaining/total, '\nParam pruning rate:', rparams/params)
+    print('FLOP pruning rate:', 1-remaining/total, '\nParam pruning rate:', 1-rparams/params)
 
     evaluate(test_loader, traced_cnn)
     torch.jit.save(traced_cnn, args.save)

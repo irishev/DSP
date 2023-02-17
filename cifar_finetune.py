@@ -24,7 +24,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='mo
 parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar='W', help='weight decay')
 
 # Fine-tuning Hyperparameters
-parser.add_argument('-c', '--cycles', default=5, type=int, metavar='C', help='number of cyclic iterations')
+parser.add_argument('-c', '--cycles', default=4, type=int, metavar='C', help='number of cyclic iterations')
 parser.add_argument('-g', '--groups', default=4, type=int, metavar='G', help='number of groups')
 parser.add_argument('-p', '--prune', default=0.15, type=float, metavar='P', help='pruning rates)')
 

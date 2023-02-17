@@ -14,14 +14,14 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 ## Pruning on CIFAR-10 
 
-| Model           | ACC | P.FLOPS | P.PARAMS | CKPT     |
-| --------------- | --- | ------- | -------- | -------- |
-| ResNet20 (g=4)  |     |         |          | [Link]() |
-| ResNet20 (g=3)  |     |         |          | [Link]() |
-| ResNet20 (g=2)  |     |         |          | [Link]() |
-| ResNet56 (g=4)  |     |         |          | [Link]() |
-| ResNet56 (g=3)  |     |         |          | [Link]() |
-| ResNet56 (g=2)  |     |         |          | [Link]() |
+| Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
+| --------------- | ----- | ------- | --------- | -------- |
+| ResNet20 (g=4)  | 92.16 |  68.01  |   51.78   | [Link]() |
+| ResNet20 (g=3)  | 92.16 |  66.49  |   52.49   | [Link]() |
+| ResNet20 (g=2)  | 92.03 |  64.74  |   52.21   | [Link]() |
+| ResNet56 (g=4)  |       |         |           | [Link]() |
+| ResNet56 (g=3)  |       |         |           | [Link]() |
+| ResNet56 (g=2)  |       |         |           | [Link]() |
 
 _We slightly changed the implementation of regularization scaling to obtain better speedup._
 

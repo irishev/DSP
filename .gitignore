@@ -160,6 +160,7 @@ cython_debug/
 #.idea/
 
 *.pkl
+*.pt
 dataset/
 *.sh
 imagenet*

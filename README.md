@@ -23,6 +23,12 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 | ResNet56 (g=3)  |       |         |           | [Link]() |
 | ResNet56 (g=2)  |       |         |           | [Link]() |
 
+How to use checkpoints
+```
+import torch
+cnn = torch.load('[CKPT_PATH]')
+```
+
 _We slightly changed the implementation of regularization scaling to obtain better speedup._
 
 _As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and fewer pruned parameters)._

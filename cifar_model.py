@@ -3,9 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 def benchmark_mode(flag):
-    torch.backends.cuda.matmul.allow_tf32 = flag
-    torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = flag
-    torch.backends.cudnn.allow_tf32 = flag
     torch.backends.cudnn.benchmark = flag
     torch.backends.cudnn.deterministic = not flag
     

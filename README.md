@@ -16,12 +16,12 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 | Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
 | --------------- | ----- | ------- | --------- | -------- |
-| ResNet20 (g=4)  | 92.16 |  68.01  |   51.78   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
-| ResNet20 (g=3)  | 92.16 |  66.49  |   52.49   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
-| ResNet20 (g=2)  | 92.03 |  64.74  |   52.21   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
-| ResNet56 (g=4)  | 94.13 |  63.83  |   54.21   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g4.pt) |
-| ResNet56 (g=3)  | 93.91 |  62.21  |   51.43   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g3.pt) |
-| ResNet56 (g=2)  |       |         |           | [Link]() |
+| ResNet20 (g=4)  | 92.19 |  63.83  |   48.98   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
+| ResNet20 (g=3)  | 92.16 |  62.93  |   49.35   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
+| ResNet20 (g=2)  | 91.95 |  62.14  |   47.09   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
+| ResNet56 (g=4)  | 94.34 |  63.42  |   55.29   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g4.pt) |
+| ResNet56 (g=3)  | 94.13 |  62.99  |   53.74   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g3.pt) |
+| ResNet56 (g=2)  | 94.08 |  61.17  |   53.14   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g2.pt) |
 
 How to use checkpoints
 ```

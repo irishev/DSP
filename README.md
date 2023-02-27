@@ -14,25 +14,6 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 ## Pruning on CIFAR-10 
 
-| Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
-| --------------- | ----- | ------- | --------- | -------- |
-| ResNet20 (g=4)  | 92.19 |  63.83  |   48.98   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
-| ResNet20 (g=3)  | 92.16 |  62.93  |   49.35   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
-| ResNet20 (g=2)  | 91.95 |  62.14  |   47.09   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
-| ResNet56 (g=4)  | 94.34 |  63.42  |   55.29   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g4.pt) |
-| ResNet56 (g=3)  | 94.13 |  62.99  |   53.74   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g3.pt) |
-| ResNet56 (g=2)  | 94.08 |  61.17  |   53.14   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g2.pt) |
-
-How to use checkpoints
-```
-import torch
-cnn = torch.load('[CKPT_PATH]')
-```
-
-_We slightly changed the implementation of regularization scaling to obtain better speedup._
-
-_As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and fewer pruned parameters)._
-
 **Pretraining**
 
 ```
@@ -72,3 +53,25 @@ python cifar_finetune.py -l 56 -g 4 -p 0.2
 ```
 python pack_model.py --ckpt [pruned_model_path] --save [save_path]
 ```
+
+| Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
+| --------------- | ----- | ------- | --------- | -------- |
+| ResNet20 (g=4)  | 92.19 |  63.83  |   48.98   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
+| ResNet20 (g=3)  | 92.16 |  62.93  |   49.35   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
+| ResNet20 (g=2)  | 91.95 |  62.14  |   47.09   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
+| ResNet56 (g=4)  | 94.34 |  63.42  |   55.29   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g4.pt) |
+| ResNet56 (g=3)  | 94.13 |  62.99  |   53.74   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g3.pt) |
+| ResNet56 (g=2)  | 94.08 |  61.17  |   53.14   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g2.pt) |
+
+How to use checkpoints
+```
+import torch
+cnn = torch.load('[CKPT_PATH]')
+```
+
+_We slightly changed the implementation of regularization scaling to obtain better speedup._
+
+_As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and fewer pruned parameters)._
+
+**TODO**
+- Implement model-agnostic pruner

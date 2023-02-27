@@ -73,5 +73,5 @@ _We slightly changed the implementation of regularization scaling to obtain bett
 
 _As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and fewer pruned parameters)._
 
-**TODO**
+## TODO
 - Implement model-agnostic pruner

@@ -22,9 +22,10 @@ class Hook():
         self.hook.remove()
         
 class GroupWrapper(nn.Module):
-    def __init__(self, model, optimizer, criterion, reg, total_steps, n_groups=None, temp=None):
+    def __init__(self, model, optimizer, criterion, reg, total_steps, n_groups=None, temp=None, rank=0):
         super(GroupWrapper, self).__init__()
-        print("Initializing...")
+        self.rank = rank
+        self.print("Initializing...")
         self.model = model
         self.optimizer = optimizer
         self.optimizer2 = type(optimizer)(self.model.parameters(), lr=self.optimizer.defaults['lr'])
@@ -34,8 +35,8 @@ class GroupWrapper(nn.Module):
         group_parameters = []
         exclude = ['downsample']
         l = -1
-        print("Finding layers to be pruned")
-        print("="*80)
+        self.print("Finding layers to be pruned")
+        self.print("="*80)
         for name, layer in model.named_modules():
             if isinstance(layer, nn.Conv2d) and all(e not in name for e in exclude):
                 if l==-1:
@@ -45,10 +46,10 @@ class GroupWrapper(nn.Module):
                 group_parameters.append(layer.group)
                 self.layers.append(layer)
                 w_dim = layer.weight.size()
-                print(f"[{l}] {name}: {w_dim[0]} filters, {w_dim[1]} channels, {w_dim[2]}x{w_dim[3]} kernels")
+                self.print(f"[{l}] {name}: {w_dim[0]} filters, {w_dim[1]} channels, {w_dim[2]}x{w_dim[3]} kernels")
                 l+=1
                 
-        print("="*80)
+        self.print("="*80)
         self.n_groups = n_groups
         self.temp = temp
         self.order = 0.5
@@ -57,11 +58,11 @@ class GroupWrapper(nn.Module):
         self.total_steps = total_steps
         self.group_optimizer = torch.optim.Adam(group_parameters, lr=0.001, eps=1e-12)
         
-        print(f"Number of groups: {self.n_groups}")
-        print(f"Regularization coefficient: {self.reg}")
-        print(f"Temparature: {self.temp}")
-        print(f"Total steps: {self.total_steps}")
-        print("="*80)
+        self.print(f"Number of groups: {self.n_groups}")
+        self.print(f"Regularization coefficient: {self.reg}")
+        self.print(f"Temparature: {self.temp}")
+        self.print(f"Total steps: {self.total_steps}")
+        self.print("="*80)
         hook = []
         for layer in self.layers:
             hook.append(Hook(layer))
@@ -71,7 +72,7 @@ class GroupWrapper(nn.Module):
         self.model.train()
         for h in hook:
             h.close()
-            
+    
     def set_arch_hard(self, layer):
         index = layer.group.max(dim=0, keepdim=True)[1]
         layer.prob = torch.zeros_like(layer.group).scatter_(0, index, 1.0)
@@ -162,6 +163,10 @@ class GroupWrapper(nn.Module):
     def apply(self, func, inputs):
         return list(map(func, inputs))
     
+    def print(self, *args):
+        if self.rank==0:
+            print(*args)
+    
     def initialize(self):
         self.apply(self.set_arch, self.layers)
         
@@ -200,27 +205,28 @@ class GroupWrapper(nn.Module):
         return self.model(x)
 
 class PruneWrapper(nn.Module):
-    def __init__(self, model, fp_every_nth_conv=None, n_groups=None):
+    def __init__(self, model, fp_every_nth_conv=None, n_groups=None, rank=0):
         super(PruneWrapper, self).__init__()
-        print("Initializing...")
+        self.rank = rank
+        self.print("Initializing...")
         self.model = model
         self.layers = []
         self.fp_layers = []
         exclude = ['downsample']
         
         l = -1
-        print("Finding layers to be pruned")
-        print("="*80)
+        self.print("Finding layers to be pruned")
+        self.print("="*80)
         for name, layer in model.named_modules():
             if isinstance(layer, nn.Conv2d) and all(e not in name for e in exclude):
                 if l==-1:
                     l+=1
                     continue
-                layer.register_parameter('group', nn.Parameter(torch.zeros(n_groups, layer.weight.size(0), device=layer.weight.device)))
+                layer.register_buffer('group', torch.zeros(n_groups, layer.weight.size(0), device=layer.weight.device))
                 layer.register_buffer('mask', torch.ones(layer.weight.size(0), layer.weight.size(1), 1, 1, device=layer.weight.device))
                 self.layers.append(layer)
                 w_dim = layer.weight.size()
-                print(f"[{l}] {name}: {w_dim[0]} filters, {w_dim[1]} channels, {w_dim[2]}x{w_dim[3]} kernels")
+                self.print(f"[{l}] {name}: {w_dim[0]} filters, {w_dim[1]} channels, {w_dim[2]}x{w_dim[3]} kernels")
                 l+=1
                 
                 if l%fp_every_nth_conv==0:
@@ -279,10 +285,14 @@ class PruneWrapper(nn.Module):
     def apply(self, func, inputs):
         return list(map(func, inputs))
     
+    def print(self, *args):
+        if self.rank==0:
+            print(*args)
+            
     def initialize(self, rate, n_iter=10, rank=0):
-        print("="*80)
-        print("Finding pruning settings to achieve the target pruning rate")
-        print("="*80)
+        self.print("="*80)
+        self.print("Finding pruning settings to achieve the target pruning rate")
+        self.print("="*80)
         self.apply(self.set_arch_hard, self.layers)
         checkpoints = copy.deepcopy(self.model.state_dict())
         self.beta = 0.15
@@ -346,16 +356,16 @@ class PruneWrapper(nn.Module):
             total_flops += layer.flops
             total_params += layer.weight.numel()
             if verbose:
-                print("[%d] FLOPS: %2.2f%%" % (n, 100*kernels.sum().item()/kernels.numel()), "Structure:",*list(zip(r_f.long().tolist(), r_ch.long().tolist())))
+                self.print("[%d] FLOPS: %2.2f%%" % (n, 100*kernels.sum().item()/kernels.numel()), "Structure:",*list(zip(r_f.long().tolist(), r_ch.long().tolist())))
         pflops = 100*(1-remaining_flops/total_flops)
         pparams = 100*(1-remaining_params/total_params)
         if verbose:
-            print("="*80)
-            print("Summary")
-            print(f"Beta: {self.beta}")
-            print(f"FLOPS: {int(remaining_flops)} ({pflops}% pruned)")
-            print(f"PARAMS: {int(remaining_params)} ({pparams}% pruned)")
-            print("="*80)
+            self.print("="*80)
+            self.print("Summary")
+            self.print(f"Beta: {self.beta}")
+            self.print(f"FLOPS: {int(remaining_flops)} ({pflops}% pruned)")
+            self.print(f"PARAMS: {int(remaining_params)} ({pparams}% pruned)")
+            self.print("="*80)
         return pflops, pparams
     
     def after_step(self):

@@ -14,7 +14,7 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 ## How to use DSP in your code
 
-You should first learn groups on pre-trained models and then prune and finetune the group-learned models.
+You should first train pre-trained models to learn groups and then prune and finetune the group-learned models.
 
 Our group-learning and pruning modules require three steps.
 1. Defining a wrapper

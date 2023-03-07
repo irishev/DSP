@@ -16,7 +16,7 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 
 You should first learn groups on pre-trained models and then prune and finetune the group-learned models.
 
-Our group-learning and pruning modules require four steps.
+Our group-learning and pruning modules require three steps.
 1. Defining a wrapper
 2. Initializing
 3. Processing after every update (step)
@@ -31,7 +31,7 @@ from dsp_module import *
 ...
 
 # After defining your model, optimizer, criterion, etc.
-group_trainer = GroupWrapper(model, optimizer, criterion, regularization_power, total_num_iterations, num_groups, temparature)
+group_trainer = GroupWrapper(model, optimizer, criterion, regularization_power, total_num_iterations, num_groups, temperature)
 
 ...
 

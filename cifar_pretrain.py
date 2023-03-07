@@ -127,7 +127,7 @@ def train(filename, network):
     return bestacc
 
 def resnet(layers):
-    return CifarResNet(ResNetBasicblock, layers, 10, None, None).to(device), "resnet"+str(layers)
+    return CifarResNet(ResNetBasicblock, layers, 10).to(device), "resnet"+str(layers)
 
 if __name__ == '__main__':
     train('resnet%d.pkl'%(args.layers,), resnet(args.layers))

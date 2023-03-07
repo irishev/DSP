@@ -8,7 +8,7 @@ def benchmark_mode(flag):
     
 class ResNetBasicblock(nn.Module):
     expansion = 1
-    def __init__(self, inplanes, planes, stride=1, downsample=None, path=None, temp=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(ResNetBasicblock, self).__init__()
 
         self.conv_a = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
@@ -24,227 +24,6 @@ class ResNetBasicblock(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        basicblock = self.conv_a(x)
-        basicblock = self.bn_a(basicblock)
-        basicblock = basicblock.relu_()
-
-        basicblock = self.conv_b(basicblock)
-        basicblock = self.bn_b(basicblock)
-
-        out = residual + basicblock
-
-        return out.relu_()
-
-class Hook():
-    def __init__(self, module):
-        self.hook = module.register_forward_hook(self.hook_fn)
-    
-    def hook_fn(self, module, input, output):
-        self.input_size = 1
-        self.flops = 1
-        for s in module.weight.size():
-            self.flops*=s
-        self.flops*=output.size(2)*output.size(3)
-        for i in input[0].size():
-            self.input_size*=i
-        module.flops = self.flops
-        module.input_size = self.input_size/(16*32*32)
-    
-    def close(self):
-        self.hook.remove()
-
-def profile(net):
-    hook = []
-    for m in net.modules():
-        if isinstance(m, Prunedblock) or isinstance(m, Deformableblock):
-            hook.append(Hook(m.conv_a))
-            hook.append(Hook(m.conv_b))
-    net.eval()
-    with torch.no_grad():
-        net(torch.randn(1,3,32,32).cuda())
-    net.train()
-    for h in hook:
-        h.close()
-        
-class Deformableblock(ResNetBasicblock):
-    def __init__(self, inplanes, planes, stride=1, downsample=None, path=None, temp=None):
-        super(Deformableblock, self).__init__(inplanes, planes, stride, downsample)
-        self.n_path = path
-        self.temp = temp
-        self.order = 0.5
-        self.group_a = nn.Parameter(torch.zeros(path, planes))
-        self.group_b = nn.Parameter(torch.zeros(path, planes))
-
-    def set_arch(self, hard=False):
-        if hard:
-            index_a = self.group_a.max(dim=0, keepdim=True)[1]
-            self.prob_a = torch.zeros_like(self.group_a).scatter_(0, index_a, 1.0)
-            index_b = self.group_b.max(dim=0, keepdim=True)[1]
-            self.prob_b = torch.zeros_like(self.group_b).scatter_(0, index_b, 1.0)
-        else:
-            self.prob_a = F.gumbel_softmax(self.group_a/self.temp, dim=0)
-            self.prob_b = F.gumbel_softmax(self.group_b/self.temp, dim=0)
-
-    @torch.no_grad()
-    def calc_penalty(self, mode=0):
-        self.penalty_a = torch.zeros_like(self.conv_a.weight)
-        self.penalty_b = torch.zeros_like(self.conv_b.weight)
-        if mode==1:
-            self.pgrad_a = torch.zeros_like(self.prob_a)
-            self.pgrad_b = torch.zeros_like(self.prob_b)
-            self.buffer_a = []
-            self.buffer_b = []
-                
-        for p, pg in zip(self.prob_a, self.pgrad_a):
-            penalty, grad = self.derivatives(self.conv_a.weight, p, self.buffer_a, self.order, mode)
-            scale = (self.conv_a.input_size**0.5)*self.conv_a.weight.size(2)*((self.group_a.size(0)/self.conv_a.weight.size(0))**1.5)
-            self.penalty_a.add_(scale*penalty)
-            if mode==2:
-                pg.add_(grad)
-            
-        for p, pg in zip(self.prob_b, self.pgrad_b):
-            penalty, grad = self.derivatives(self.conv_b.weight, p, self.buffer_b, self.order, mode)
-            scale = (self.conv_b.input_size**0.5)*self.conv_b.weight.size(2)*((self.group_b.size(0)/self.conv_b.weight.size(0))**1.5)
-            self.penalty_b.add_(scale*penalty)
-            if mode==2:
-                pg.add_(grad)
-
-    @torch.no_grad()
-    def derivatives(self, w, p, buffer, order, mode):
-        group = p.view(-1,1,1,1)*w
-        group_norm = (group**2).sum(dim=(3,2,0),keepdim=True)**0.5
-        multiplier = group/(1e-8+group_norm)
-        g_order = p**order
-        g_order_sum = g_order.sum()
-        gnorm = g_order_sum**(1/order)
-        
-        penalty= gnorm*p.view(-1,1,1,1)*multiplier
-        if mode==2:
-            grad = gnorm*(multiplier*w).sum(dim=(3,2,1)) + group_norm.sum()*gnorm*g_order/(g_order_sum*p+1e-8)
-            return penalty, grad
-        elif mode==1:
-            grad = gnorm*multiplier+gnorm*p.view(-1,1,1,1)*(1/(group_norm+1e-8)-group.sum(dim=(3,2,0),keepdim=True)/(group_norm**2+1e-8)*multiplier)*w,\
-                   (multiplier*p.view(-1,1,1,1)),\
-                    gnorm*g_order/(g_order_sum*p+1e-8)
-            buffer.append(grad)
-            return penalty, None
-        else:
-            return penalty, None
-   
-    @torch.no_grad()         
-    def calc_group_grad(self):
-        grad_a = self.conv_a.weight - self.checkpoint_a
-        grad_b = self.conv_b.weight - self.checkpoint_b
-        
-        for pg, g in zip(self.pgrad_a, self.buffer_a):
-            g1, g2, g3 = g
-            grad = (grad_a*g1).sum(dim=(3,2,1))+(grad_a*g2).sum()*g3
-            pg.add_(grad)
-        for pg, g in zip(self.pgrad_b, self.buffer_b):
-            g1, g2, g3 = g
-            grad = (grad_b*g1).sum(dim=(3,2,1))+(grad_b*g2).sum()*g3
-            pg.add_(grad)
-        
-        
-    def group_backward(self, rate):
-        (rate*((self.prob_a*self.pgrad_a).sum()+(self.prob_b*self.pgrad_b).sum())).backward()
-    
-    @torch.no_grad()
-    def do_penalty(self, rate, lr):
-        self.conv_a.weight.add_(self.penalty_a, alpha=-rate*lr)
-        self.conv_b.weight.add_(self.penalty_b, alpha=-rate*lr)
-            
-    @torch.no_grad()
-    def checkpoint(self):
-        self.checkpoint_a = self.conv_a.weight.clone().detach()
-        self.checkpoint_b = self.conv_b.weight.clone().detach()
-    
-class Prunedblock(ResNetBasicblock):
-    def __init__(self, inplanes, planes, stride=1, downsample=None, path=None, temp=None):
-        super(Prunedblock, self).__init__(inplanes, planes, stride, downsample)
-        self.group_a = nn.Parameter(torch.zeros(path, planes))
-        self.group_b = nn.Parameter(torch.zeros(path, planes))
-        self.register_buffer('mask_conv_a', torch.ones(planes, inplanes, 1, 1))
-        self.register_buffer('mask_conv_b', torch.ones(planes, planes, 1, 1))
-        self.register_buffer('mask_bn_a', torch.ones(planes))
-        self.register_buffer('mask_bn_b', torch.ones(planes))
-    
-    @torch.no_grad()    
-    def pruning_stats(self, verbose=False):
-        flops = self.mask_conv_a.sum().item()/self.mask_conv_a.numel(), self.mask_conv_b.sum().item()/self.mask_conv_b.numel()
-        if verbose:
-            print(flops)
-            
-        return (flops[0], self.conv_a.flops, self.conv_a.weight.numel()), (flops[1] , self.conv_b.flops, self.conv_b.weight.numel())
-
-    @torch.no_grad()
-    def set_arch(self):
-            index_a = self.group_a.max(dim=0, keepdim=True)[1]
-            self.prob_a = torch.zeros_like(self.group_a).scatter_(0, index_a, 1.0)
-            index_b = self.group_b.max(dim=0, keepdim=True)[1]
-            self.prob_b = torch.zeros_like(self.group_b).scatter_(0, index_b, 1.0)
-    
-    @torch.no_grad()
-    def set_mask(self, rate):
-        mask_ai, mask_ao, stats_a = self.find_mask(self.conv_a.weight, self.prob_a, rate, 0)
-        mask_bi, mask_bo, stats_b = self.find_mask(self.conv_b.weight, self.prob_b, rate, rate)
-                
-        self.mask_bn_b.copy_(mask_bo)
-        self.mask_conv_b.copy_(mask_bo.view(-1,1,1,1)*mask_ao.view(1,-1,1,1)*mask_bi.view(*mask_bi.size(),1,1))
-        self.mask_bn_a.copy_((self.mask_conv_b.sum(0)>0).float().squeeze())
-        self.mask_conv_a.copy_(self.mask_bn_a.view(-1,1,1,1)*mask_ai.view(*mask_ai.size(),1,1))
-        
-        print(list(zip(stats_a,(self.prob_a*self.mask_bn_a.unsqueeze(0)).sum(1).long().tolist())),
-             list(zip(stats_b,(self.prob_b*self.mask_bn_b.unsqueeze(0)).sum(1).long().tolist())))
-            
-    @torch.no_grad()
-    def find_mask(self, weight, prob, rate_i, rate_o):
-        importance = weight.data**2
-            
-        imp_i = torch.stack([((p.view(-1,1,1,1)**2)*importance).sum(dim=(3,2,0)) for p in prob],dim=0)
-        imp_o = importance.sum(dim=(3,2,1))
-
-        imp_i = imp_i/(imp_i.sum(dim=1,keepdim=True)+1e-12)
-        imp_o = imp_o/(imp_o.sum()+1e-12)
-
-        rank_i = imp_i.sort(dim=1)[0]
-        rank_o = imp_o.sort(dim=0)[0]
-
-        csoi_i = rank_i.cumsum(dim=1)
-        csoi_o = rank_o.cumsum(dim=0)
-
-        count_i = (csoi_i<rate_i).long().sum(dim=1)
-        count_o = (csoi_o<rate_o).long().sum(dim=0)
-            
-        th_i = rank_i[torch.arange(rank_i.size(0)), count_i-1].unsqueeze(1)
-        th_o = rank_o[count_o-1]
-
-        mask_i = (prob.unsqueeze(2) * (imp_i > th_i).float().unsqueeze(1)).sum(0)
-        
-        if count_o!=0:
-            mask_o = (imp_o > th_o).float()
-        else:
-            mask_o = torch.ones_like(imp_o)
-        
-        pruned_stats = (imp_i > th_i).float().sum(1).long().tolist()
-        
-        return mask_i, mask_o, pruned_stats
-        
-    @torch.no_grad()
-    def prune(self):
-        self.conv_a.weight.mul_(self.mask_conv_a)
-        self.bn_a.weight.mul_(self.mask_bn_a)
-        self.bn_a.bias.mul_(self.mask_bn_a)
-        self.conv_b.weight.mul_(self.mask_conv_b)
-        self.bn_b.weight.mul_(self.mask_bn_b)
-        self.bn_b.bias.mul_(self.mask_bn_b)
-
-    def forward(self, x):
-        
-        residual = x
-        if self.downsample is not None:
-            residual = self.downsample(x)
-        
         basicblock = self.conv_a(x)
         basicblock = self.bn_a(basicblock)
         basicblock = basicblock.relu_()
@@ -301,8 +80,8 @@ class Compactblock(nn.Module):
             pbn_a = block.bn_a
             pconv_b = block.conv_b
             pbn_b = block.bn_b
-            mask_conv_a = block.mask_conv_a
-            mask_conv_b = block.mask_conv_b
+            mask_conv_a = block.conv_a.mask
+            mask_conv_b = block.conv_b.mask
             self.block = block
             stride = block.conv_a.weight.size(0)//block.conv_a.weight.size(1)
             
@@ -422,7 +201,7 @@ class CifarResNet(nn.Module):
     https://arxiv.org/abs/1512.03385.pdf
     """
 
-    def __init__(self, block, depth, num_classes, path, temp):
+    def __init__(self, block, depth, num_classes):
         """ Constructor
         Args:
           depth: number of layers.
@@ -441,13 +220,13 @@ class CifarResNet(nn.Module):
         self.bn_1 = nn.BatchNorm2d(16)
 
         self.inplanes = 16
-        self.stage_1 = self._make_layer(block, 16, layer_blocks, path, temp, 1)
-        self.stage_2 = self._make_layer(block, 32, layer_blocks, path, temp, 2)
-        self.stage_3 = self._make_layer(block, 64, layer_blocks, path, temp, 2)
+        self.stage_1 = self._make_layer(block, 16, layer_blocks, 1)
+        self.stage_2 = self._make_layer(block, 32, layer_blocks, 2)
+        self.stage_3 = self._make_layer(block, 64, layer_blocks, 2)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
         self.classifier = nn.Linear(64 * block.expansion, num_classes)
 
-    def _make_layer(self, block, planes, blocks, path, temp, stride=1):
+    def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -457,10 +236,10 @@ class CifarResNet(nn.Module):
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, path = path, temp=temp))
+        layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes,  path = path, temp=temp))
+            layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
 

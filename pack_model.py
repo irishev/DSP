@@ -2,6 +2,7 @@ import os
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 from cifar_model import *
+from dsp_module import *
 import argparse
 def warn(*args, **kwargs):
     pass
@@ -31,37 +32,31 @@ def main():
                                               batch_size=128, num_workers=4,
                                               shuffle=False)
 
-    cnn = CifarResNet(Prunedblock, args.layers, 10, path=args.groups, temp=None).to(device)
+    cnn = CifarResNet(ResNetBasicblock, args.layers, 10).to(device)
+    pruner = PruneWrapper(cnn, args.groups)
     loadpath = args.ckpt
     state_dict, baseacc = torch.load(loadpath)
     print(args.ckpt, baseacc)
     cnn.load_state_dict(state_dict, strict=False)
+    pruner.summary(True, True)
         
-    packed_cnn = CifarResNet(Compactblock, args.layers, 10, path=args.groups, temp=None).to(device)
+    packed_cnn = CifarResNet(Compactblock, args.layers, 10).to(device)
 
     org_modules = dict(cnn.named_modules())
     new_modules = dict(packed_cnn.named_modules())
     for k in org_modules:
-        if isinstance(org_modules[k], Prunedblock):
+        if isinstance(org_modules[k], ResNetBasicblock):
             new_modules[k].compact(org_modules[k])
     copy_params(cnn, packed_cnn)
+    
+    for m in packed_cnn.modules():
+        if isinstance(m, Compactblock):
+            del m.block
+            
     input_tensor = torch.randn(1,3,32,32).to(device)
     traced_cnn = torch.jit.trace(packed_cnn.eval(), input_tensor)
-    print(traced_cnn)
-    profile(cnn)
+    #print(traced_cnn)
     
-    remaining = 0
-    total = 0
-    params = 0
-    rparams = 0
-    for l in [m.pruning_stats(True) for m in cnn.modules() if isinstance(m, Prunedblock)]:
-        for rate, flop, param in l:
-            remaining += rate*flop
-            total += flop
-            rparams += rate*param
-            params += param
-    print('FLOP pruning rate:', 1-remaining/total, '\nParam pruning rate:', 1-rparams/params)
-
     evaluate(test_loader, traced_cnn)
     torch.jit.save(traced_cnn, args.save)
         

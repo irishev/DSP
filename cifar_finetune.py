@@ -1,9 +1,12 @@
-import os, math
+import os
+import math
+import copy
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 from cifar_model import *
+from dsp_module import *
 import argparse
 def warn(*args, **kwargs):
     pass
@@ -26,18 +29,19 @@ parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar=
 # Fine-tuning Hyperparameters
 parser.add_argument('-c', '--cycles', default=4, type=int, metavar='C', help='number of cyclic iterations')
 parser.add_argument('-g', '--groups', default=4, type=int, metavar='G', help='number of groups')
-parser.add_argument('-p', '--prune', default=0.15, type=float, metavar='P', help='pruning rates)')
+parser.add_argument('-p', '--prune', default=0.5, type=float, metavar='P', help='pruning rates)')
 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"]=args.device
 
 
+
 def get_lr(optimizer):
     return [param_group['lr'] for param_group in optimizer.param_groups]
-
+    
 device = torch.device("cuda")
 
-def train(network, pr_rate, path):
+def train(network):
     train_dataset = dsets.CIFAR10(root='./dataset',
                                   train=True,
                                   download=True,
@@ -51,7 +55,6 @@ def train(network, pr_rate, path):
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                batch_size=args.batch_size, num_workers=args.workers,
                                                shuffle=True, drop_last=True)
-
     test_dataset = dsets.CIFAR10(root='./dataset',
                                train=False,
                                transform=transforms.Compose([
@@ -65,122 +68,75 @@ def train(network, pr_rate, path):
 
     cnn, netname = network
     config = netname
-    savepath = args.save_dir+'/'+netname+'_P%sg%dc%.2f.pkl'%(args.device, path, pr_rate)
-    loadpath = args.save_dir+'/'+netname+'_G%sg%d.pkl'%(args.device, path)
-        
+    savepath = args.save_dir+'/'+netname+'_P%sg%dc%.2f.pkl'%(args.device, args.groups, args.prune)
+    loadpath = args.save_dir+'/'+netname+'_G%sg%d.pkl'%(args.device, args.groups)
     state_dict, baseacc = torch.load(loadpath)
-    print(savepath, baseacc)
+    print(loadpath)
+    print(baseacc)
+    pruner = PruneWrapper(cnn, 2, args.groups)
     cnn.load_state_dict(state_dict, strict=False)
-
-    param_optimizer = list(cnn.named_parameters())
-    exclude = ['group']
-    optimizer_grouped_parameters = [p for n, p in param_optimizer if not any(nd in n for nd in exclude)]
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
-    for m in cnn.modules():
-        if isinstance(m, Prunedblock):
-            m.set_arch()
-            m.set_mask(pr_rate)
-            m.prune()
     
-    profile(cnn)
+    optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     
-    remaining = 0
-    total = 0
-    params = 0
-    rparams = 0
-    for l in [m.pruning_stats(True) for m in cnn.modules() if isinstance(m, Prunedblock)]:
-        for rate, flop, param in l:
-            remaining += rate*flop
-            total += flop
-            rparams += rate*param
-            params += param
-    
-    flops = (1-remaining/total)*100
-    params = (1-rparams/params)*100
-    print('FLOP pruning rate:', flops, '\nParam pruning rate:', params)
-    bestset = {'acc':0, 'flops':flops, 'params':params}
-
     epoch_per_cycle = math.ceil(args.epochs / args.cycles)
-    scheduler = OneCycleLR(optimizer, args.lr, epoch_per_cycle)
-        
-    bar = tqdm(total=len(train_loader) * args.epochs)
+    scheduler = CosineAnnealingLR(optimizer, epoch_per_cycle)
+    
+    flops, params = pruner.initialize(args.prune, train_loader)
+    bestset = {'acc':0, 'flops':flops, 'params':params, 'state_dict': copy.deepcopy(cnn.state_dict())}
+
+    bar = tqdm(total=len(train_loader) * args.epochs, ncols=120)
     for epoch in range(args.epochs):
         cnn.train()
-        scheduler.step(epoch%epoch_per_cycle)
-        loss = train_epoch(train_loader, cnn, config, criterion, bestset, optimizer, bar)
-        acc = evaluate(test_loader, cnn)
+        for step, (images, labels) in enumerate(train_loader):
+            
+            optimizer.zero_grad()
+            gpuimg = images.to(device)
+            labels = labels.to(device)
+
+            outputs = cnn(gpuimg)
+            loss = criterion(outputs, labels)
+
+            loss.backward()
+            optimizer.step()
+            pruner.after_step()
+            bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|PR_F:%.2f|PR_P:%.2f" % (get_lr(optimizer)[0], loss.item(), bestset['acc'], bestset['flops'], bestset['params']))
+            bar.update()
+
+        scheduler.step()
+        cnn.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in test_loader:
+                images = images.to(device)
+                outputs = cnn(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted.cpu() == labels).sum().item()
+        acc = 100 * correct / total
+        print()
+        print(f"Val accuracy: {acc}%")
+        cnn.train()
 
         if bestset['acc']<=acc:
-            bestset = {'acc':acc, 'flops':flops, 'params':params}
-            torch.save([cnn.state_dict(),bestset['acc']], savepath)
+            bestset = {'acc':acc, 'flops':flops, 'params':params, 'state_dict': copy.deepcopy(cnn.state_dict())}
+            torch.save([bestset['state_dict'], bestset['acc']], savepath)
             bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|PR_F:%.2f|PR_P:%.2f" % (get_lr(optimizer)[0], loss.item(), bestset['acc'], bestset['flops'], bestset['params']))
         
         # prune a small portion of channels for each cycle
         # to prevent over-fitting and to remove dead channels
         if (epoch<args.epochs-1) and ((epoch+1)%epoch_per_cycle==0):
-            for m in cnn.modules():
-                if isinstance(m, Prunedblock):
-                    m.set_mask(1e-3)
-                    m.prune()
-            remaining = 0
-            total = 0
-            params = 0
-            rparams = 0
-            for l in [m.pruning_stats(True) for m in cnn.modules() if isinstance(m, Prunedblock)]:
-                for rate, flop, param in l:
-                    remaining += rate*flop
-                    total += flop
-                    rparams += rate*param
-                    params += param
-            flops = (1-remaining/total)*100
-            params = (1-rparams/params)*100
-            print('FLOP pruning rate:', flops, '\nParam pruning rate:', params)
+            cnn.load_state_dict(bestset['state_dict'])
+            flops, params=pruner.initialize(1e-3, train_loader)
+            optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+            scheduler = CosineAnnealingLR(optimizer, epoch_per_cycle)
             
     bar.close()
     return bestset['acc']
 
-def evaluate(test_loader, cnn):
-    cnn.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for images, labels in test_loader:
-            images = images.to(device)
-            outputs = cnn(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted.cpu() == labels).sum().item()
-    acc = 100 * correct / total
-    print(acc)
-    cnn.train()
-    return acc
-
-def train_epoch(train_loader, cnn, config, criterion, bestset, optimizer, bar):
-    for step, (images, labels) in enumerate(train_loader):
-        optimizer.zero_grad()
-        gpuimg = images.to(device)
-        labels = labels.to(device)
-
-        outputs = cnn(gpuimg)
-        loss = criterion(outputs, labels)
-            
-        loss.backward()
-        optimizer.step()
-        prune(cnn)
-        
-        bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|PR_F:%.2f|PR_P:%.2f" % (get_lr(optimizer)[0], loss.item(), bestset['acc'], bestset['flops'], bestset['params']))
-        bar.update()
-    return loss
-
-def prune(cnn):
-    for m in cnn.modules():
-        if isinstance(m, Prunedblock):
-            m.prune()
-
-def resnet(layers, path):
-    return CifarResNet(Prunedblock, layers, 10, path=path, temp=None).to(device), "resnet"+str(layers)
+def resnet(layers):
+    return CifarResNet(ResNetBasicblock, layers, 10).to(device), "resnet"+str(layers)
 
 if __name__ == '__main__':
-    train(resnet(args.layers, args.groups), args.prune, args.groups)
+    train(resnet(args.layers))

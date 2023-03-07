@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 from cifar_model import *
+from dsp_module import *
 import argparse
 def warn(*args, **kwargs):
     pass
@@ -38,7 +39,7 @@ def get_lr(optimizer):
     
 device = torch.device("cuda")
 
-def train(network, reg, path):
+def train(network):
     train_dataset = dsets.CIFAR10(root='./dataset',
                                   train=True,
                                   download=True,
@@ -52,7 +53,6 @@ def train(network, reg, path):
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                batch_size=args.batch_size, num_workers=args.workers,
                                                shuffle=True, drop_last=True)
-    
     test_dataset = dsets.CIFAR10(root='./dataset',
                                train=False,
                                transform=transforms.Compose([
@@ -67,146 +67,63 @@ def train(network, reg, path):
     cnn, netname = network
     config = netname
     loadpath = args.save_dir+'/'+netname+'.pkl'
-    savepath = args.save_dir+'/'+netname+'_G%sg%d.pkl'%(args.device, path)
+    savepath = args.save_dir+'/'+netname+'_G%sg%d.pkl'%(args.device, args.groups)
     state_dict, baseacc = torch.load(loadpath)
     print(loadpath)
     print(baseacc)
-    cnn.load_state_dict(state_dict, strict=False)
+    cnn.load_state_dict(state_dict)
     criterion = nn.CrossEntropyLoss()
     bestacc=0
 
-    param_optimizer = list(cnn.named_parameters())
-    
-    exclude = ['group']
-    optimizer_grouped_parameters = [p for n, p in param_optimizer if not any(nd in n for nd in exclude)]
-    group_parameters = [p for n, p in param_optimizer if 'group' in n]
-
-    optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    group_optimizer = torch.optim.Adam(group_parameters, lr=0.001, eps=1e-12)
+    optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     scheduler = CosineAnnealingLR(optimizer, args.epochs)
-    
-    profile(cnn)
-    
-    bar = tqdm(total=len(train_loader) * args.epochs)
+    group_trainer = GroupWrapper(cnn, optimizer, criterion, args.regularize, len(train_loader)*args.epochs, args.groups, args.temparature)
+
+    bar = tqdm(total=len(train_loader) * args.epochs, ncols=120)
     for epoch in range(args.epochs):
         cnn.train()
-        scheduler.step(epoch)
-        loss = train_epoch(train_loader, cnn, config, criterion, bestacc, optimizer, group_optimizer, bar, reg, ((epoch+1)/args.epochs))
-        acc = evaluate(test_loader, cnn)
+        for step, (images, labels) in enumerate(train_loader):
+            group_trainer.initialize()
+            optimizer.zero_grad()
+            gpuimg = images.to(device)
+            labels = labels.to(device)
+
+            outputs = cnn(gpuimg)
+            loss = criterion(outputs, labels)
+
+            loss.backward()
+            optimizer.step()
+            group_trainer.after_step(gpuimg, labels)
+            bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|STD:%.3f" % (get_lr(optimizer)[0], loss.item(), bestacc, group_trainer.stats()))
+            bar.update()
+
+        scheduler.step()
+
+        cnn.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for images, labels in test_loader:
+                images = images.to(device)
+                outputs = cnn(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted.cpu() == labels).sum().item()
+        acc = 100 * correct / total
+        print()
+        print(f"Val accuracy: {acc}%")
+        cnn.train()
 
         if (bestacc<acc) and (epoch>8):
             bestacc=acc
             torch.save([cnn.state_dict(),bestacc], savepath)
-            bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f" % (get_lr(optimizer)[0], loss.item(), bestacc))
+            bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|STD:%.3f" % (get_lr(optimizer)[0], loss.item(), bestacc, group_trainer.stats()))
+
     bar.close()
     return bestacc
 
-def evaluate(test_loader, cnn):
-    cnn.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for images, labels in test_loader:
-            images = images.to(device)
-            outputs = cnn(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted.cpu() == labels).sum().item()
-    acc = 100 * correct / total
-    print(acc)
-    cnn.train()
-    return acc
-
-def train_epoch(train_loader, cnn, config, criterion, bestacc, optimizer, group_optimizer, bar, reg, warmup):
-    for step, (images, labels) in enumerate(train_loader):
-        gpuimg = images.to(device)
-        labels = labels.to(device)
-
-        loss = train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, reg, warmup)
-
-        bar.set_description("[" + config + "]LR:%.4f|LOSS:%.2f|ACC:%.2f|REG:%.3fe-3" % (get_lr(optimizer)[0], loss.item(), bestacc, reg*warmup*1000))
-        bar.update()
-    return loss
-
-def zero_grad(optimizer, group_optimizer):
-    optimizer.zero_grad(True)
-    group_optimizer.zero_grad(True)
-
-
-def train_step(cnn, criterion, optimizer, group_optimizer, labels, gpuimg, reg, warmup):
-    zero_grad(optimizer, group_optimizer)
-    set_arch(cnn, False)
-    outputs = cnn(gpuimg)
-    loss = criterion(outputs, labels)
-    loss.backward()
-    optimizer.step()
-    calc_penalty(cnn, 1)
-    zero_grad(optimizer, group_optimizer)
-    states = save_states(cnn, optimizer)
-    regularize(cnn, optimizer, reg)
-    checkpoint(cnn)
-    outputs = cnn(gpuimg)
-    loss = criterion(outputs, labels)
-    loss.backward()
-    optimizer.step()
-    calc_penalty(cnn, 2)
-    regularize(cnn, optimizer, reg)
-    group_grad(cnn)
-    group_backward(cnn, reg)
-    group_optimizer.step()
-    zero_grad(optimizer, group_optimizer)
-    load_states(cnn, optimizer, states)
-    set_arch(cnn, True)
-    calc_penalty(cnn, 0)
-    regularize(cnn, optimizer, reg*warmup)
-    return loss
-
-def group_grad(cnn):
-    for m in cnn.modules():
-        if is_pruned(m):
-            m.calc_group_grad()
-
-def group_backward(cnn, rate):
-    for m in cnn.modules():
-        if is_pruned(m):
-            m.group_backward(rate)
-
-def regularize(cnn, optimizer, rate):
-    for m in cnn.modules():
-        if is_pruned(m):
-            m.do_penalty(rate, optimizer.param_groups[0]['lr'])
-
-def checkpoint(cnn):
-    for m in cnn.modules():
-        if is_pruned(m):
-            m.checkpoint()
-
-def save_states(cnn, optimizer):
-    model_states = {k: v.clone().detach() for k, v in cnn.state_dict().items() if 'group' not in k}
-    momenta = [{k: v.clone().detach() for k, v in l.items()} for l in optimizer.state_dict()['state'].values()]
-    return model_states, momenta
-            
-def load_states(cnn, optimizer, states):
-    cnn.load_state_dict(states[0], False)
-    for l, s in zip(optimizer.state_dict()['state'].values(), states[1]):
-        for k in l:
-            l[k].copy_(s[k])
-            
-def set_arch(cnn, hard):
-    for m in cnn.modules():
-        if is_pruned(m):
-            m.set_arch(hard)
-
-def calc_penalty(cnn, mode):
-    for m in cnn.modules():
-        if is_pruned(m):
-            m.calc_penalty(mode)
-            
-def is_pruned(m):
-    return isinstance(m, Deformableblock)
-
-def resnet(layers, path, temp):
-    return CifarResNet(Deformableblock, layers, 10, path=path, temp=temp).to(device), "resnet"+str(layers)
+def resnet(layers):
+    return CifarResNet(ResNetBasicblock, layers, 10).to(device), "resnet"+str(layers)
 
 if __name__ == '__main__':
-    train(resnet(args.layers, args.groups, args.temparature), args.regularize, args.groups)
+    train(resnet(args.layers))

@@ -279,7 +279,7 @@ class PruneWrapper(nn.Module):
     def apply(self, func, inputs):
         return list(map(func, inputs))
     
-    def initialize(self, rate, train_loader, n_iter=10):
+    def initialize(self, rate, n_iter=10, rank=0):
         print("="*80)
         print("Finding pruning settings to achieve the target pruning rate")
         print("="*80)
@@ -288,7 +288,7 @@ class PruneWrapper(nn.Module):
         self.beta = 0.15
         lower, upper = 0, 1.
         for _ in range(n_iter):
-            pflops, pparams = self.prune(train_loader)
+            pflops, pparams = self.prune()
             if pflops>rate*100:
                 temp = self.beta
                 self.beta = (self.beta+lower)/2
@@ -298,17 +298,17 @@ class PruneWrapper(nn.Module):
                 self.beta = (self.beta+upper)/2
                 lower = temp
             self.model.load_state_dict(checkpoints)
-        pflops, pparams = self.prune(train_loader, True)
+        pflops, pparams = self.prune(rank==0)
         return pflops, pparams
     
-    def prune(self, train_loader, verbose=False):
+    def prune(self, verbose=False):
         self.apply(self.find_mask, self.layers)
         self.apply(self.find_mask_fp, self.fp_layers)
         self.apply(self.apply_mask, self.layers)
-        for n, (x, y) in enumerate(train_loader):
-            F.cross_entropy(self.model(x.cuda()), y.cuda()).backward()
-            if n/len(train_loader)>0.2:
-                break
+        for _ in range(125):
+            out = self.model(torch.randn(80, 3, 32, 32).cuda())
+            F.cross_entropy(out, torch.randint(0, out.size(1), (80,)).cuda()).backward()
+            
         # remove dead filters by tracking zero gradients
         with torch.no_grad():
             for m in self.model.modules():

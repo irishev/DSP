@@ -20,14 +20,14 @@ parser.add_argument('--save_dir', type=str, default='./cifarmodel/', help='Folde
 parser.add_argument('-l', '--layers', default=20, type=int, metavar='L', help='number of ResNet layers')
 parser.add_argument('-d', '--device', default='0', type=str, metavar='D', help='main device (default: 0)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='J', help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=300, type=int, metavar='E', help='number of total epochs to run')
+parser.add_argument('--epochs', default=400, type=int, metavar='E', help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=128, type=int, metavar='B', help='mini-batch size')
 parser.add_argument('--lr', '--learning-rate', default=0.015, type=float, metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float, metavar='W', help='weight decay')
 
 # Fine-tuning Hyperparameters
-parser.add_argument('-c', '--cycles', default=4, type=int, metavar='C', help='number of cyclic iterations')
+parser.add_argument('-c', '--cycles', default=5, type=int, metavar='C', help='number of cyclic iterations')
 parser.add_argument('-g', '--groups', default=4, type=int, metavar='G', help='number of groups')
 parser.add_argument('-p', '--prune', default=0.5, type=float, metavar='P', help='pruning rates)')
 
@@ -82,7 +82,7 @@ def train(network):
     epoch_per_cycle = math.ceil(args.epochs / args.cycles)
     scheduler = CosineAnnealingLR(optimizer, epoch_per_cycle)
     
-    flops, params = pruner.initialize(args.prune, train_loader)
+    flops, params = pruner.initialize(args.prune)
     bestset = {'acc':0, 'flops':flops, 'params':params, 'state_dict': copy.deepcopy(cnn.state_dict())}
 
     bar = tqdm(total=len(train_loader) * args.epochs, ncols=120)
@@ -128,7 +128,7 @@ def train(network):
         # to prevent over-fitting and to remove dead channels
         if (epoch<args.epochs-1) and ((epoch+1)%epoch_per_cycle==0):
             cnn.load_state_dict(bestset['state_dict'])
-            flops, params=pruner.initialize(1e-3, train_loader)
+            flops, params=pruner.initialize(1e-3)
             optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
             scheduler = CosineAnnealingLR(optimizer, epoch_per_cycle)
             

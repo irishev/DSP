@@ -12,6 +12,72 @@ We will release pruned models (pytorch-JIT-compiled) soon!
 - TorchVision 0.11.0
 - tqdm
 
+## How to use DSP in your code
+
+You should first learn groups on pre-trained models and then prune and finetune the group-learned models.
+
+Our group-learning and pruning modules require four steps.
+1. Defining a wrapper
+2. Initializing
+3. Processing after every update (step)
+
+Following sections shows code examples using our modules
+
+**Differentiable Group Learning**
+
+```
+from dsp_module import *
+
+...
+
+# After defining your model, optimizer, criterion, etc.
+group_trainer = GroupWrapper(model, optimizer, criterion, regularization_power, total_num_iterations, num_groups, temparature)
+
+...
+
+# Training iteration
+for epoch in range(args.epochs):
+    for x, y in train_dataloader:
+        # Before forward (model(x))
+        group_trainer.initialize()
+        out = model(x)
+        ...
+
+        # After model update (optimizer.step())
+        group_trainer.after_step(x, y)
+
+...
+
+```
+
+**Group Channel Pruning**
+
+```
+from dsp_module import *
+
+...
+
+# Before loading group-learned checkpoints
+pruner = PruneWrapper(model, fp_every_nth_conv, num_groups)
+
+...
+
+# Before training starts
+flops, params = pruner.initialize(pruning_rate)
+
+# Training iteration
+for epoch in range(args.epochs):
+    for x, y in train_dataloader:
+        
+        ...
+
+        # After model update (optimizer.step())
+        pruner.after_step()
+...
+```
+
+Please refer to our CIFAR-10 pruning codes (cifar_dsp.py and cifar_finetune.py) to help your understanding of our modules.
+
 ## Pruning on CIFAR-10 
 
 **Pretraining**
@@ -27,11 +93,11 @@ python cifar_pretrain.py -l 56 [--save-dir ./cifarmodel] [--epochs 164] [--batch
 **Differentiable Group Learning**
 
 ```
-# ResNet20 with group 4, lambda=1e-3
-python cifar_dsp.py -l 20 -g 4 -r 1e-3
+# ResNet20 with group 4, lambda=2e-3
+python cifar_dsp.py -l 20 -g 4 -r 2e-3
 
-# ResNet20 with group 2, lambda=1e-3
-python cifar_dsp.py -l 20 -g 2 -r 1e-3
+# ResNet20 with group 2, lambda=2e-3
+python cifar_dsp.py -l 20 -g 2 -r 2e-3
 
 # ResNet56 with group 4, lambda=5e-4
 python cifar_dsp.py -l 56 -g 4 -r 5e-4
@@ -40,11 +106,11 @@ python cifar_dsp.py -l 56 -g 4 -r 5e-4
 **Group Channel Pruning**
 
 ```
-# ResNet20 with group 4, pruning rate=0.2
-python cifar_finetune.py -l 20 -g 4 -p 0.2
+# ResNet20 with group 4, pruning rate=0.5
+python cifar_finetune.py -l 20 -g 4 -p 0.5
 
-# ResNet56 with group 4, pruning rate=0.2
-python cifar_finetune.py -l 56 -g 4 -p 0.2
+# ResNet56 with group 4, pruning rate=0.5
+python cifar_finetune.py -l 56 -g 4 -p 0.5
 
 ```
 

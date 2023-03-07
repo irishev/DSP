@@ -59,6 +59,7 @@ from dsp_module import *
 
 # Before loading group-learned checkpoints
 pruner = PruneWrapper(model, num_groups, fp_every_nth_conv)
+
 # fp_every_nth_conv means it prunes filters of every nth convolution layers.
 # In our paper, we prune filters of the final layer in each residual block.
 # In CIFAR-10, fp_every_nth_conv = 2, and in ImageNet, fp_every_nth_conv = 2 (ResNet18) or 3 (ResNet50)

@@ -205,13 +205,24 @@ class GroupWrapper(nn.Module):
         return self.model(x)
 
 class PruneWrapper(nn.Module):
-    def __init__(self, model, fp_every_nth_conv=None, n_groups=None, rank=0):
+    def __init__(self, model, n_groups=None, fp_every_nth_conv=None, fp_layer_indices=None, rank=0):
         super(PruneWrapper, self).__init__()
         self.rank = rank
         self.print("Initializing...")
         self.model = model
         self.layers = []
         self.fp_layers = []
+        if fp_layer_indices is not None:
+            fp_every_nth_conv = 2**32
+        else:
+            fp_layer_indices = []
+            if fp_every_nth_conv is None:
+                self.print('Please provide one of fp_every_nth_conv and fp_layer_indices.')
+                self.print("If you don't want filter pruning, please set fp_every_nth_conv=-1 or fp_layer_indices=[]")
+                raise ValueError
+            elif fp_every_nth_conv == -1:
+                fp_every_nth_conv = 2**32
+        self.p_biases = []
         exclude = ['downsample']
         self.beta = 0
         
@@ -228,13 +239,11 @@ class PruneWrapper(nn.Module):
                 self.layers.append(layer)
                 w_dim = layer.weight.size()
                 self.print(f"[{l}] {name}: {w_dim[0]} filters, {w_dim[1]} channels, {w_dim[2]}x{w_dim[3]} kernels")
+                if ((l+1)%fp_every_nth_conv==0) or (l in fp_layer_indices):
+                    self.fp_layers.append(layer)
                 l+=1
                 
-                if l%fp_every_nth_conv==0:
-                    self.fp_layers.append(layer)
-                
         self.n_groups = n_groups
-        self.first = True
         
         hook = []
         for layer in self.layers:
@@ -282,6 +291,13 @@ class PruneWrapper(nn.Module):
     @torch.no_grad()
     def apply_mask(self, layer):
         layer.weight.mul_(layer.mask)
+    
+    @torch.no_grad()
+    def residual_bn_proc(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm2d):
+                m.bias.mul_((m.weight.abs()>0).float())
+        
     
     def apply(self, func, inputs):
         return list(map(func, inputs))
@@ -331,10 +347,8 @@ class PruneWrapper(nn.Module):
                         m.mask.mul_((m.weight.grad.abs().sum(dim=(3,2,0), keepdim=True)>0).float())
                 elif isinstance(m, nn.BatchNorm2d):
                     m.weight.mul_((m.weight.grad.abs()>0).float())
-                    m.bias.mul_((m.bias.grad.abs()>0).float())
-                elif isinstance(m, nn.Linear):
-                    m.weight.mul_((m.weight.grad.abs().sum(dim=1, keepdim=True)>0).float())
-                    m.bias.mul_((m.bias.grad.abs()>0).float())
+                    m.bias.mul_((m.weight.grad.abs()>0).float())
+                    
             pflops, pparams=self.summary(verbose)
         self.model.zero_grad(True)
             
@@ -371,6 +385,7 @@ class PruneWrapper(nn.Module):
     
     def after_step(self):
         self.apply(self.apply_mask, self.layers)
+        self.residual_bn_proc()
     
     def forward(self, x):
         return self.model(x)

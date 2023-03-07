@@ -21,7 +21,7 @@ Our group-learning and pruning modules require three steps.
 2. Initializing
 3. Processing after every update (step)
 
-Following sections show code examples using our modules
+Following sections show code examples using our modules.
 
 **Differentiable Group Learning**
 
@@ -58,7 +58,13 @@ from dsp_module import *
 ...
 
 # Before loading group-learned checkpoints
-pruner = PruneWrapper(model, fp_every_nth_conv, num_groups)
+pruner = PruneWrapper(model, num_groups, fp_every_nth_conv)
+# fp_every_nth_conv means it prunes filters of every nth convolution layers.
+# In our paper, we prune filters of the final layer in each residual block.
+# In CIFAR-10, fp_every_nth_conv = 2, and in ImageNet, fp_every_nth_conv = 2 (ResNet18) or 3 (ResNet50)
+# If your models have irregular numbers of layers in each residual block, 
+# you can specify the indices of layers by setting fp_layer_indices=[1, 3, 5, 8, 11, 14, ...]
+# If you set both fp_every_nth_conv and fp_layer_indices, the latter is prioritized.
 
 ...
 

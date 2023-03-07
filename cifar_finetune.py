@@ -73,7 +73,7 @@ def train(network):
     state_dict, baseacc = torch.load(loadpath)
     print(loadpath)
     print(baseacc)
-    pruner = PruneWrapper(cnn, 2, args.groups)
+    pruner = PruneWrapper(cnn, args.groups, 2)
     cnn.load_state_dict(state_dict, strict=False)
     criterion = nn.CrossEntropyLoss()
     

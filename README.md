@@ -21,7 +21,7 @@ Our group-learning and pruning modules require three steps.
 2. Initializing
 3. Processing after every update (step)
 
-Following sections shows code examples using our modules
+Following sections show code examples using our modules
 
 **Differentiable Group Learning**
 

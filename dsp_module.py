@@ -213,6 +213,7 @@ class PruneWrapper(nn.Module):
         self.layers = []
         self.fp_layers = []
         exclude = ['downsample']
+        self.beta = 0
         
         l = -1
         self.print("Finding layers to be pruned")

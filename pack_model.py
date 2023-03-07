@@ -33,7 +33,7 @@ def main():
                                               shuffle=False)
 
     cnn = CifarResNet(ResNetBasicblock, args.layers, 10).to(device)
-    pruner = PruneWrapper(cnn, args.groups)
+    pruner = PruneWrapper(cnn, 2, args.groups)
     loadpath = args.ckpt
     state_dict, baseacc = torch.load(loadpath)
     print(args.ckpt, baseacc)

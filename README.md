@@ -1,10 +1,12 @@
-# Dynamic Structure Pruning for Compressing CNNs
+# Dynamic Structure Pruning
 
-_Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee_
+*Dynamic Structure Pruning for Compressing CNNs \[AAAI 2023]*
 
-_Proceedings of the 37th AAAI Conference on Artificial Intelligence (AAAI-23)_
+Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee
 
 ![](assets/architecture.png)
+
+Learn filter groups and prune channels of each groups individually
 
 ## Requirements
 - Python 3.7

@@ -10,7 +10,6 @@ Generate **compact and efficient** CNNs based on **grouping and pruning** that *
 ## Introduction
 
 Dynamic Structure Pruning automatically learns intra-channel sparsity by optimizing filter groups and regularizing group channels.
-
 This allows for higher efficiency from fine-grained pruing granularities, while producing generally accelerable (i.e., regular) structures.
 
 ![](assets/architecture.png)

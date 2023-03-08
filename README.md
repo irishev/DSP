@@ -4,7 +4,7 @@ _Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee_
 
 _Proceedings of the 37th AAAI Conference on Artificial Intelligence (AAAI-23)_
 
-We will release pruned models (pytorch-JIT-compiled) soon!
+![](assets/architecture.png)
 
 ## Requirements
 - Python 3.7
@@ -145,6 +145,12 @@ cnn = torch.load('[CKPT_PATH]')
 _We slightly changed the implementation of regularization scaling to obtain better speedup._
 
 _As a result, pruned results may be different from those in the paper (usually more pruned FLOPS and fewer pruned parameters)._
+
+## Pruning on ImageNet 
+
+**Pruned Models**
+
+We will release pruned models for the ImageNet dataset soon!
 
 ## TODO
 - Implement model-agnostic pruner

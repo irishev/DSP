@@ -3,7 +3,7 @@
 ### **Dynamic Structure Pruning for Compressing CNNs \[AAAI 2023]**
 Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee
 
-Generate **compact and efficient** CNNs based on **grouping and pruning** that **transforms single-branch** convolutional layers into **multi-branch** convolutional layers
+Generate **compact and efficient** CNNs based on **grouping and pruning** that **transform single-branch** convolutional layers into **multi-branch** convolutional layers
 
 ![](assets/structure.png)
 

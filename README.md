@@ -108,7 +108,7 @@ python cifar_pretrain.py -l 56 [--save-dir ./cifarmodel] [--epochs 164] [--batch
 
 **Differentiable Group Learning**
 
-```
+``` bash
 # ResNet20 with group 4, lambda=2e-3
 python cifar_dsp.py -l 20 -g 4 -r 2e-3
 

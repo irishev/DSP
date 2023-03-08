@@ -306,7 +306,7 @@ class PruneWrapper(nn.Module):
         if self.rank==0:
             print(*args)
             
-    def initialize(self, rate, n_iter=10, rank=0):
+    def initialize(self, rate, n_iter=10):
         self.print("="*80)
         self.print("Finding pruning settings to achieve the target pruning rate")
         self.print("="*80)
@@ -325,7 +325,7 @@ class PruneWrapper(nn.Module):
                 self.beta = (self.beta+upper)/2
                 lower = temp
             self.model.load_state_dict(checkpoints)
-        pflops, pparams = self.prune(rank==0)
+        pflops, pparams = self.prune(True)
         return pflops, pparams
     
     def prune(self, verbose=False):

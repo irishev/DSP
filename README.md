@@ -98,7 +98,7 @@ Please refer to our CIFAR-10 pruning codes (cifar_dsp.py and cifar_finetune.py) 
 
 **Pretraining**
 
-```
+``` bash
 # pretrain ResNet20
 python cifar_pretrain.py -l 20 [--save-dir ./cifarmodel] [--epochs 164] [--batch-size 128] [--lr 0.1] [--momentum 0.9] [--wd 1e-4]
 
@@ -121,7 +121,7 @@ python cifar_dsp.py -l 56 -g 4 -r 5e-4
 
 **Group Channel Pruning**
 
-```
+``` bash
 # ResNet20 with group 4, pruning rate=0.5
 python cifar_finetune.py -l 20 -g 4 -p 0.5
 
@@ -132,7 +132,7 @@ python cifar_finetune.py -l 56 -g 4 -p 0.5
 
 **Packing Pruned Models**
 
-```
+``` bash
 python pack_model.py --ckpt [pruned_model_path] --save [save_path]
 ```
 

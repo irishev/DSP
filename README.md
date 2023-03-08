@@ -1,7 +1,7 @@
 # Dynamic Structure Pruning
 
-> **Dynamic Structure Pruning for Compressing CNNs \[AAAI 2023]**
-> Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee
+### **Dynamic Structure Pruning for Compressing CNNs \[AAAI 2023]**
+Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee
 
 Generate **compact and efficient** CNNs based on **grouping and pruning** that **transforms single-branch** convolutional layers into **multi-branch** convolutional layers
 
@@ -34,7 +34,7 @@ Following sections show code examples using our modules.
 
 **Differentiable Group Learning**
 
-```
+``` python
 from dsp_module import *
 
 ...
@@ -61,7 +61,7 @@ for epoch in range(args.epochs):
 
 **Group Channel Pruning**
 
-```
+``` python
 from dsp_module import *
 
 ...
@@ -146,7 +146,7 @@ python pack_model.py --ckpt [pruned_model_path] --save [save_path]
 | ResNet56 (g=2)  | 94.08 |  61.17  |   53.14   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g2.pt) |
 
 How to use checkpoints
-```
+``` python
 import torch
 cnn = torch.load('[CKPT_PATH]')
 ```
@@ -162,4 +162,5 @@ _As a result, pruned results may be different from those in the paper (usually m
 We will release pruned models for the ImageNet dataset soon!
 
 ## TODO
-- Implement model-agnostic pruner
+- [x] Implement model-agnostic pruner
+- [ ] Release ImageNet models

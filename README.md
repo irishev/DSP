@@ -1,12 +1,19 @@
 # Dynamic Structure Pruning
 
-*Dynamic Structure Pruning for Compressing CNNs \[AAAI 2023]*
+> **Dynamic Structure Pruning for Compressing CNNs \[AAAI 2023]**
+> Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee
 
-Jun-Hyung Park, Yeachan Kim, Junho Kim, Joon-Young Choi, and SangKeun Lee
+Generate **compact and efficient** CNNs based on **grouping and pruning** that **transforms single-branch** convolutional layers into **multi-branch** convolutional layers
+
+![](assets/structure.png)
+
+## Introduction
+
+Dynamic structure Pruning automatically learns intra-channel sparsity by optimizing filter groups and regularizing group channels.
+
+This allows higher efficiency from fine-grained pruing granularities, while producing generally accelerable (i.e., regular) structures.
 
 ![](assets/architecture.png)
-
-Learn filter groups and prune channels of each groups individually
 
 ## Requirements
 - Python 3.7

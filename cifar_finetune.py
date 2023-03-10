@@ -128,7 +128,7 @@ def train(network):
         # to prevent over-fitting and to remove dead channels
         if (epoch<args.epochs-1) and ((epoch+1)%epoch_per_cycle==0):
             cnn.load_state_dict(bestset['state_dict'])
-            flops, params=pruner.initialize(1e-3)
+            flops, params=pruner.initialize(bestset['flops']/100+0.001)
             optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
             scheduler = CosineAnnealingLR(optimizer, epoch_per_cycle)
             

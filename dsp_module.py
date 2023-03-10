@@ -262,6 +262,7 @@ class PruneWrapper(nn.Module):
             
     @torch.no_grad()
     def find_mask(self, layer):
+        layer.mask.fill_(1)
         importance = layer.weight.data**2
             
         imp = torch.stack([((p.view(-1,1,1,1)**2)*importance).sum(dim=(3,2,0)) for p in layer.prob],dim=0)

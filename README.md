@@ -135,11 +135,13 @@ python cifar_finetune.py -l 56 -g 4 -p 0.5
 python pack_model.py --ckpt [pruned_model_path] --save [save_path]
 ```
 
+We upload checkpoints that shows the median accuracy of five runs
+
 | Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
 | --------------- | ----- | ------- | --------- | -------- |
-| ResNet20 (g=4)  | 92.19 |  63.83  |   48.98   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
-| ResNet20 (g=3)  | 92.16 |  62.93  |   49.35   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
-| ResNet20 (g=2)  | 91.95 |  62.14  |   47.09   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
+| ResNet20 (g=4)  | 92.22 |  63.57  |   50.45   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g4.pt) |
+| ResNet20 (g=3)  | 92.14 |  62.43  |   49.15   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g3.pt) |
+| ResNet20 (g=2)  | 92.07 |  61.23  |   48.35   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet20_g2.pt) |
 | ResNet56 (g=4)  | 94.34 |  63.42  |   55.29   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g4.pt) |
 | ResNet56 (g=3)  | 94.13 |  62.99  |   53.74   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g3.pt) |
 | ResNet56 (g=2)  | 94.08 |  61.17  |   53.14   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet56_g2.pt) |

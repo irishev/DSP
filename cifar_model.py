@@ -35,40 +35,122 @@ class ResNetBasicblock(nn.Module):
 
         return out.relu_()
 
-from typing import List
+from typing import Tuple
 
-class Sampler(nn.Module):
-    def __init__(self, inds: torch.Tensor):
-        super(Sampler, self).__init__()
-        self.inds = inds
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.take_along_dim(x, self.inds, 1)
+class Sampler_T1(nn.Module):
+    def __init__(self, ind1: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+    
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
+        return torch.take_along_dim(x, self.ind1, 1),
+    
+class Sampler_T2(nn.Module):
+    def __init__(self, ind1: torch.Tensor, ind2: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+        self.ind2 = ind2
+    
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
+        return torch.take_along_dim(x, self.ind1, 1), torch.take_along_dim(x, self.ind2, 1)
 
-class Splitter(nn.Module):
+class Sampler_T3(nn.Module):
+    def __init__(self, ind1: torch.Tensor, ind2: torch.Tensor, ind3: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+        self.ind2 = ind2
+        self.ind3 = ind3
+    
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
+        return torch.take_along_dim(x, self.ind1, 1), torch.take_along_dim(x, self.ind2, 1), torch.take_along_dim(x, self.ind3, 1)
+
+class Sampler_T4(nn.Module):
+    def __init__(self, ind1: torch.Tensor, ind2: torch.Tensor, ind3: torch.Tensor, ind4: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+        self.ind2 = ind2
+        self.ind3 = ind3
+        self.ind4 = ind4
+    
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
+        return torch.take_along_dim(x, self.ind1, 1), torch.take_along_dim(x, self.ind2, 1), torch.take_along_dim(x, self.ind3, 1), torch.take_along_dim(x, self.ind4, 1)
+
+class Concat_T1(nn.Module):
     def __init__(self):
-        super(Splitter, self).__init__()
-        
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
-        return torch.tensor_split(x, x.size(1), 1)
+        super().__init__()
+    
+    def forward(self, x1: torch.Tensor) -> torch.Tensor:
+        return x1
+    
+class Concat_T2(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+        return torch.cat([x1, x2], dim=1)
+     
+class Concat_T3(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor) -> torch.Tensor:
+        return torch.cat([x1, x2, x3], dim=1)
+    
+class Concat_T4(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor, x4: torch.Tensor) -> torch.Tensor:
+        return torch.cat([x1, x2, x3, x4], dim=1)
+      
+class IAdd_T1(nn.Module):
+    def __init__(self, ind1: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+    
+    def forward(self, out: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x1)
+        return out
+    
+class IAdd_T2(nn.Module):
+    def __init__(self, ind1: torch.Tensor, ind2: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+        self.ind2 = ind2
+    
+    def forward(self, out: torch.Tensor, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x1)
+        out = out.index_add_(1, self.ind2, x2)
+        return out
 
-class Composer(nn.Module):
-    def __init__(self, inds: List[int]):
-        super(Composer, self).__init__()
-        self.inds = inds
-        
-    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
-        return torch.cat([x[n] for n in self.inds], 1)
-
-def index_add_(a, b, inds):
-    return a.index_add_(1, inds, b)
-
-class Splitted_Sequential(nn.Sequential):
-    def forward(self, input:List[torch.Tensor]):
-        for module in self:
-            input = module(input)
-        return input
-
+class IAdd_T3(nn.Module):
+    def __init__(self, ind1: torch.Tensor, ind2: torch.Tensor, ind3: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+        self.ind2 = ind2
+        self.ind3 = ind3
+    
+    def forward(self, out: torch.Tensor, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x1)
+        out = out.index_add_(1, self.ind2, x2)
+        out = out.index_add_(1, self.ind3, x3)
+        return out
+    
+class IAdd_T4(nn.Module):
+    def __init__(self, ind1: torch.Tensor, ind2: torch.Tensor, ind3: torch.Tensor, ind4: torch.Tensor):
+        super().__init__()
+        self.ind1 = ind1
+        self.ind2 = ind2
+        self.ind3 = ind3
+        self.ind4 = ind4
+    
+    def forward(self, out: torch.Tensor, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor, x4: torch.Tensor) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x1)
+        out = out.index_add_(1, self.ind2, x2)
+        out = out.index_add_(1, self.ind3, x3)
+        out = out.index_add_(1, self.ind4, x4)
+        return out
+    
 class Compactblock(nn.Module):
     expansion=1
     def __init__(self, *args, **kwargs):
@@ -82,7 +164,6 @@ class Compactblock(nn.Module):
             pbn_b = block.bn_b
             mask_conv_a = block.conv_a.mask
             mask_conv_b = block.conv_b.mask
-            self.block = block
             stride = block.conv_a.weight.size(0)//block.conv_a.weight.size(1)
             
             inp_inds_a = []
@@ -166,17 +247,35 @@ class Compactblock(nn.Module):
                 inp_inds_b.append(mapped_inds)
                 out_inds_b.append(och_ind)
             
-            self.layers_a = nn.ModuleList([nn.Sequential(Sampler(torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device)),
-                                                         *l,
-                                                         Splitter()) for l, inds in zip(layers_a, inp_inds_a)])
-            self.layers_b = nn.ModuleList([Splitted_Sequential(Composer(inds),
-                                                         *l) for l, inds in zip(layers_b, inp_inds_b)])
+            self.n_groups_a = len(inp_inds_a)
+            self.layers_a = nn.ModuleList([nn.Sequential(*l) for l in layers_a])
+            if self.n_groups_a==1:
+                self.sampler_a = Sampler_T1(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_a])
+                self.concat_a = Concat_T1()
+            elif self.n_groups_a==2:
+                self.sampler_a = Sampler_T2(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_a])
+                self.concat_a = Concat_T2()
+            elif self.n_groups_a==3:
+                self.sampler_a = Sampler_T3(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_a])
+                self.concat_a = Concat_T3()
+            elif self.n_groups_a==4:
+                self.sampler_a = Sampler_T4(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_a])
+                self.concat_a = Concat_T4()
+            self.n_groups_b = len(inp_inds_b)
+            self.layers_b = nn.ModuleList([nn.Sequential(*l) for l in layers_b])
+            if self.n_groups_b==1:
+                self.sampler_b = Sampler_T1(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_b])
+                self.residual = IAdd_T1(*[torch.LongTensor(inds).to(pbn_b.weight.device) for inds in out_inds_b])
+            elif self.n_groups_b==2:
+                self.sampler_b = Sampler_T2(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_b])
+                self.residual = IAdd_T2(*[torch.LongTensor(inds).to(pbn_b.weight.device) for inds in out_inds_b])
+            elif self.n_groups_b==3:
+                self.sampler_b = Sampler_T3(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_b])
+                self.residual = IAdd_T3(*[torch.LongTensor(inds).to(pbn_b.weight.device) for inds in out_inds_b])
+            elif self.n_groups_b==4:
+                self.sampler_b = Sampler_T4(*[torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_b])
+                self.residual = IAdd_T4(*[torch.LongTensor(inds).to(pbn_b.weight.device) for inds in out_inds_b])
             
-            
-            self.inp_a = [torch.LongTensor(inds).view(1,-1,1,1).to(pbn_b.weight.device) for inds in inp_inds_a]
-            self.out_a = out_inds_a
-            self.inp_b = inp_inds_b
-            self.out_b = [torch.LongTensor(inds).to(pbn_b.weight.device) for inds in out_inds_b]
 
         self.downsample = block.downsample
 
@@ -184,14 +283,18 @@ class Compactblock(nn.Module):
         identity = x
         if self.downsample is not None:
             identity = self.downsample(x)
-        out = identity   
-        outs_a = []
-        for group_a in self.layers_a:
-            outs_a += group_a(x)
-        outs_b = [group_b(outs_a) for group_b in self.layers_b]
+        out = identity
         
-        for i, o in enumerate(outs_b):
-            index_add_(out, o, self.out_b[i])
+        ch_a = self.sampler_a(x)
+        out_a = []
+        for i in range(self.n_groups_a):
+            out_a.append(self.layers_a[i](ch_a[i]))
+        ch_b = self.sampler_b(self.concat_a(*out_a))
+        out_b = []
+        for i in range(self.n_groups_b):
+            out_b.append(self.layers_b[i](ch_b[i]))
+        
+        out = self.residual(out, *out_b)
         
         return out.relu_()
 

@@ -48,10 +48,6 @@ def main():
         if isinstance(org_modules[k], ResNetBasicblock):
             new_modules[k].compact(org_modules[k])
     copy_params(cnn, packed_cnn)
-    
-    for m in packed_cnn.modules():
-        if isinstance(m, Compactblock):
-            del m.block
             
     input_tensor = torch.randn(1,3,32,32).to(device)
     traced_cnn = torch.jit.trace(packed_cnn.eval(), input_tensor)

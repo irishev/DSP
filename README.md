@@ -135,7 +135,7 @@ python cifar_finetune.py -l 56 -g 4 -p 0.5
 python pack_model.py --ckpt [pruned_model_path] --save [save_path]
 ```
 
-We upload checkpoints that shows the median accuracy of five runs
+We upload checkpoints that show the median accuracy of five runs
 
 | Model           |  ACC  | P.FLOPS | P.PARAMS  | CKPT     |
 | --------------- | ----- | ------- | --------- | -------- |

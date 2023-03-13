@@ -35,7 +35,7 @@ class ResNetBasicblock(nn.Module):
 
         return out.relu_()
 
-from typing import Tuple
+from typing import Tuple, List
 
 class Sampler_T1(nn.Module):
     def __init__(self, ind1: torch.Tensor):
@@ -79,37 +79,37 @@ class Concat_T1(nn.Module):
     def __init__(self):
         super().__init__()
     
-    def forward(self, x1: torch.Tensor) -> torch.Tensor:
-        return x1
+    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
+        return x[0]
     
 class Concat_T2(nn.Module):
     def __init__(self):
         super().__init__()
     
-    def forward(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
-        return torch.cat([x1, x2], dim=1)
+    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
+        return torch.cat((x[0], x[1]), dim=1)
      
 class Concat_T3(nn.Module):
     def __init__(self):
         super().__init__()
     
-    def forward(self, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor) -> torch.Tensor:
-        return torch.cat([x1, x2, x3], dim=1)
+    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
+        return torch.cat((x[0], x[1], x[2]), dim=1)
     
 class Concat_T4(nn.Module):
     def __init__(self):
         super().__init__()
     
-    def forward(self, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor, x4: torch.Tensor) -> torch.Tensor:
-        return torch.cat([x1, x2, x3, x4], dim=1)
+    def forward(self, x: List[torch.Tensor]) -> torch.Tensor:
+        return torch.cat((x[0], x[1], x[2], x[3]), dim=1)
       
 class IAdd_T1(nn.Module):
     def __init__(self, ind1: torch.Tensor):
         super().__init__()
         self.ind1 = ind1
     
-    def forward(self, out: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
-        out = out.index_add_(1, self.ind1, x1)
+    def forward(self, out: torch.Tensor, x: List[torch.Tensor]) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x[0])
         return out
     
 class IAdd_T2(nn.Module):
@@ -118,9 +118,9 @@ class IAdd_T2(nn.Module):
         self.ind1 = ind1
         self.ind2 = ind2
     
-    def forward(self, out: torch.Tensor, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
-        out = out.index_add_(1, self.ind1, x1)
-        out = out.index_add_(1, self.ind2, x2)
+    def forward(self, out: torch.Tensor, x: List[torch.Tensor]) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x[0])
+        out = out.index_add_(1, self.ind2, x[1])
         return out
 
 class IAdd_T3(nn.Module):
@@ -130,10 +130,10 @@ class IAdd_T3(nn.Module):
         self.ind2 = ind2
         self.ind3 = ind3
     
-    def forward(self, out: torch.Tensor, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor) -> torch.Tensor:
-        out = out.index_add_(1, self.ind1, x1)
-        out = out.index_add_(1, self.ind2, x2)
-        out = out.index_add_(1, self.ind3, x3)
+    def forward(self, out: torch.Tensor, x: List[torch.Tensor]) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x[0])
+        out = out.index_add_(1, self.ind2, x[1])
+        out = out.index_add_(1, self.ind3, x[2])
         return out
     
 class IAdd_T4(nn.Module):
@@ -144,11 +144,11 @@ class IAdd_T4(nn.Module):
         self.ind3 = ind3
         self.ind4 = ind4
     
-    def forward(self, out: torch.Tensor, x1: torch.Tensor, x2: torch.Tensor, x3: torch.Tensor, x4: torch.Tensor) -> torch.Tensor:
-        out = out.index_add_(1, self.ind1, x1)
-        out = out.index_add_(1, self.ind2, x2)
-        out = out.index_add_(1, self.ind3, x3)
-        out = out.index_add_(1, self.ind4, x4)
+    def forward(self, out: torch.Tensor, x: List[torch.Tensor]) -> torch.Tensor:
+        out = out.index_add_(1, self.ind1, x[0])
+        out = out.index_add_(1, self.ind2, x[1])
+        out = out.index_add_(1, self.ind3, x[2])
+        out = out.index_add_(1, self.ind4, x[3])
         return out
     
 class Compactblock(nn.Module):
@@ -287,14 +287,14 @@ class Compactblock(nn.Module):
         
         ch_a = self.sampler_a(x)
         out_a = []
-        for i in range(self.n_groups_a):
-            out_a.append(self.layers_a[i](ch_a[i]))
-        ch_b = self.sampler_b(self.concat_a(*out_a))
+        for i, l in enumerate(self.layers_a):
+            out_a.append(l(ch_a[i]))
+        ch_b = self.sampler_b(self.concat_a(out_a))
         out_b = []
-        for i in range(self.n_groups_b):
-            out_b.append(self.layers_b[i](ch_b[i]))
+        for i, l in enumerate(self.layers_b):
+            out_b.append(l(ch_b[i]))
         
-        out = self.residual(out, *out_b)
+        out = self.residual(out, out_b)
         
         return out.relu_()
 

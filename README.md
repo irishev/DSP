@@ -149,7 +149,8 @@ We upload checkpoints that show the median accuracy of five runs
 How to use checkpoints
 ``` python
 import torch
-cnn = torch.load('[CKPT_PATH]')
+cnn = torch.jit.load('[CKPT_PATH]')
+# You can use TensorRT or torch.jit.optimize_for_inference to achieve further acceleration.
 ```
 
 _We slightly changed the implementation of regularization scaling to obtain better speedup._

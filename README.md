@@ -161,7 +161,16 @@ _As a result, pruned results may be different from those in the paper (usually m
 
 **Pruned Models**
 
-We will release pruned models for the ImageNet dataset soon!
+| Model           |  Top-1 ACC  | P.FLOPS | P.PARAMS  | CKPT     |
+| --------------- | ----------- | ------- | --------- | -------- |
+|                 |    69.55    |  60.08  |   45.70   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.60.pt) |
+| ResNet18 (g=2)  |    67.95    |  70.05  |   57.25   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.70.pt) |
+|                 |    65.81    |  80.00  |   69.92   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.80.pt) |
+| --------------- | ----------- | ------- | --------- | -------- |
+|                 |    76.54    |  70.00  |   52.54   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.70.pt) |
+| ResNet50 (g=2)  |    75.45    |  80.03  |   66.00   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.80.pt) |
+|                 |    73.29    |  90.02  |   81.64   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.90.pt) |
+
 
 ## TODO
 - [x] Implement model-agnostic pruner

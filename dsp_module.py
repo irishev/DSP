@@ -22,7 +22,7 @@ class Hook():
         self.hook.remove()
         
 class GroupWrapper(nn.Module):
-    def __init__(self, model, optimizer, criterion, reg, total_steps, n_groups=None, temp=None, rank=0):
+    def __init__(self, model, optimizer, criterion, reg, total_steps, n_groups=None, temp=None, group_optimizer_lr=1e-3, rank=0):
         super(GroupWrapper, self).__init__()
         self.rank = rank
         self.print("Initializing...")
@@ -56,7 +56,7 @@ class GroupWrapper(nn.Module):
         self.reg = reg
         self.steps = 0
         self.total_steps = total_steps
-        self.group_optimizer = torch.optim.Adam(group_parameters, lr=0.001, eps=1e-12)
+        self.group_optimizer = torch.optim.Adam(group_parameters, lr=group_optimizer_lr, eps=1e-12)
         
         self.print(f"Number of groups: {self.n_groups}")
         self.print(f"Regularization coefficient: {self.reg}")
@@ -86,59 +86,76 @@ class GroupWrapper(nn.Module):
     def calc_penalty_no_grad(self, layer):
         layer.penalty = torch.zeros_like(layer.weight)
         for p, pg in zip(layer.prob, layer.pgrad):
-            group = p.view(-1,1,1,1)*layer.weight
-            group_norm = (group**2).sum(dim=(3,2,0),keepdim=True)**0.5
-            multiplier = group/(1e-8+group_norm)
+            group_weights = p.view(-1,1,1,1)*layer.weight
+            lasso = (group_weights**2).sum(dim=(3,2,0),keepdim=True)**0.5 # R(a, w)
+            normalized_weights = group_weights/(1e-8+lasso)
+            dlasso_dw = p.view(-1,1,1,1)*normalized_weights
+            
             g_order = p**self.order
             g_order_sum = g_order.sum()
-            gnorm = g_order_sum**(1/self.order)
-            penalty= gnorm*p.view(-1,1,1,1)*multiplier
-            scale = (layer.input_size**0.5)*layer.weight.size(2)*((layer.group.size(0)/layer.weight.size(0))**1.5)
-            layer.penalty.add_(scale*penalty)
+            gnorm = g_order_sum**(1/self.order) # s(a)
+            
+            # R = gnorm*lasso
+            dR_dw = gnorm*dlasso_dw
+            
+            scale = (layer.input_size**0.5)*layer.weight.size(2)*(layer.group.size(0)**1.5)/(layer.weight.size(0)**0.5)
+            layer.penalty.add_(scale*dR_dw)
             
     @torch.no_grad()
     def calc_penalty_first_grad(self, layer):
         layer.penalty = torch.zeros_like(layer.weight)
         for p, pg in zip(layer.prob, layer.pgrad):
-            group = p.view(-1,1,1,1)*layer.weight
-            group_norm = (group**2).sum(dim=(3,2,0),keepdim=True)**0.5
-            multiplier = group/(1e-8+group_norm)
+            group_weights = p.view(-1,1,1,1)*layer.weight
+            lasso = (group_weights**2).sum(dim=(3,2,0),keepdim=True)**0.5 # R(a, w)
+            normalized_weights = group_weights/(1e-8+lasso)
+            dlasso_dw = p.view(-1,1,1,1)*normalized_weights
+            dlasso_da = (layer.weight*normalized_weights).sum(dim=(3,2,1))
+            
             g_order = p**self.order
             g_order_sum = g_order.sum()
-            gnorm = g_order_sum**(1/self.order)
-            penalty= gnorm*p.view(-1,1,1,1)*multiplier
-            grad = gnorm*multiplier+gnorm*p.view(-1,1,1,1)*(1/(group_norm+1e-8)-group.sum(dim=(3,2,0),keepdim=True)/(group_norm**2+1e-8)*multiplier)*layer.weight,\
-                (multiplier*p.view(-1,1,1,1)),\
-                gnorm*g_order/(g_order_sum*p+1e-8)
-            layer.buffer.append(grad)
+            gnorm = g_order_sum**(1/self.order) # s(a)
+            dgnorm_da = g_order*gnorm/(p*g_order_sum+1e-8)
+            
+            # R = gnorm*lasso
+            dR_dw = gnorm*dlasso_dw
+            
+            buffer_for_d2R_dadw = (dgnorm_da, dlasso_dw, gnorm, normalized_weights, dlasso_da, lasso)
+            layer.buffer.append(buffer_for_d2R_dadw)
             
             scale = (layer.input_size**0.5)*layer.weight.size(2)*((layer.group.size(0)/layer.weight.size(0))**1.5)
-            layer.penalty.add_(scale*penalty)
-                
+            layer.penalty.add_(scale*dR_dw)
+    
     @torch.no_grad()
     def calc_penalty_second_grad(self, layer):
         layer.penalty = torch.zeros_like(layer.weight)
         for p, pg in zip(layer.prob, layer.pgrad):
-            group = p.view(-1,1,1,1)*layer.weight
-            group_norm = (group**2).sum(dim=(3,2,0),keepdim=True)**0.5
-            multiplier = group/(1e-8+group_norm)
+            group_weights = p.view(-1,1,1,1)*layer.weight
+            lasso = (group_weights**2).sum(dim=(3,2,0),keepdim=True)**0.5 # R(a, w)
+            normalized_weights = group_weights/(1e-8+lasso)
+            dlasso_dw = p.view(-1,1,1,1)*normalized_weights
+            dlasso_da = (layer.weight*normalized_weights).sum(dim=(3,2,1))
+            
             g_order = p**self.order
             g_order_sum = g_order.sum()
-            gnorm = g_order_sum**(1/self.order)
-            penalty= gnorm*p.view(-1,1,1,1)*multiplier
-            grad = gnorm*(multiplier*layer.weight).sum(dim=(3,2,1)) + group_norm.sum()*gnorm*g_order/(g_order_sum*p+1e-8)
+            gnorm = g_order_sum**(1/self.order) # s(a)
+            dgnorm_da = g_order*gnorm/(p*g_order_sum+1e-8)
+            
+            # R = gnorm*lasso
+            dR_dw = gnorm*dlasso_dw
+            dR_da = gnorm*dlasso_da + lasso.sum()*dgnorm_da
             
             scale = (layer.input_size**0.5)*layer.weight.size(2)*((layer.group.size(0)/layer.weight.size(0))**1.5)
-            layer.penalty.add_(scale*penalty)
-            pg.add_(grad)
+            layer.penalty.add_(scale*dR_dw)
+            pg.add_(dR_da)
         
     @torch.no_grad()         
     def second_order_grad(self, layer):
-        grad_a = layer.weight - layer.checkpoint
+        grad = layer.weight - layer.checkpoint
         for pg, g in zip(layer.pgrad, layer.buffer):
-            g1, g2, g3 = g
-            grad = (grad_a*g1).sum(dim=(3,2,1))+(grad_a*g2).sum()*g3
-            pg.add_(grad)       
+            dgnorm_da, dlasso_dw, gnorm, normalized_weights, dlasso_da, lasso = g
+            d2R_dadw = dgnorm_da*(dlasso_dw*grad).sum(dim=(3,2,1)) + \
+                        gnorm*((2*normalized_weights*grad).sum(dim=(3,2,1))-dlasso_da*(dlasso_dw*grad/lasso).sum(dim=(3,2,1)))
+            pg.add_(d2R_dadw)
         
     def group_backward(self, layer):
         (layer.prob*layer.pgrad).sum().backward()

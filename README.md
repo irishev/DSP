@@ -163,13 +163,8 @@ _As a result, pruned results may be different from those in the paper (usually m
 
 | Model           |  Top-1 ACC  | P.FLOPS | P.PARAMS  | CKPT     |
 | --------------- | ----------- | ------- | --------- | -------- |
-|                 |    69.55    |  60.08  |   45.70   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.60.pt) |
-| ResNet18 (g=2)  |    67.95    |  70.05  |   57.25   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.70.pt) |
-|                 |    65.81    |  80.00  |   69.92   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.80.pt) |
-| --------------- | ----------- | ------- | --------- | -------- |
-|                 |    76.54    |  70.00  |   52.54   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.70.pt) |
-| ResNet50 (g=2)  |    75.45    |  80.03  |   66.00   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.80.pt) |
-|                 |    73.29    |  90.02  |   81.64   | [Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.90.pt) |
+| ResNet18 (g=2)  |69.55<br>67.95<br>65.81|60.08<br>70.05<br>80.00|45.70<br>57.25<br>69.92|[Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.60.pt)<br>[Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.70.pt)<br>[Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet18_g2_0.80.pt) |
+| ResNet50 (g=2)  |76.54<br>75.45<br>73.29|70.00<br>80.03<br>90.02|52.54<br>66.00<br>81.64|[Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.70.pt)<br>[Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.80.pt)<br>[Link](https://github.com/irishev/DSP/raw/main/checkpoints/resnet50_g2_0.90.pt)|
 
 
 ## TODO

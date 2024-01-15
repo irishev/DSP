@@ -98,7 +98,7 @@ class GroupWrapper(nn.Module):
             # R = gnorm*lasso
             dR_dw = gnorm*dlasso_dw
             
-            scale = (layer.input_size**0.5)*layer.weight.size(2)*(layer.group.size(0)**1.5)/(layer.weight.size(0)**0.5)
+            scale = (layer.input_size**0.5)*layer.weight.size(2)*((layer.group.size(0)/layer.weight.size(0))**1.5)
             layer.penalty.add_(scale*dR_dw)
             
     @torch.no_grad()
